@@ -113,11 +113,15 @@ the server-side recipe-engine route (architecture plan §3).
 
 ### `apps/web`
 
-Next.js App Router scaffold. It depends on `@btf-recipe-builder/calculation` via the workspace
-(`"@btf-recipe-builder/calculation": "*"` in its `package.json`), and the homepage
-(`src/app/page.tsx`) already imports and calls `reconcilePrescription`, rendering the result —
-this exists only as a smoke test proving the workspace link works, not as real UI. Routes,
-components, and styling direction beyond that one page reflect no real decision yet.
+Next.js App Router scaffold. Depends on `@btf-recipe-builder/calculation` and
+`@btf-recipe-builder/schema` via the workspace. The wizard lives at `/wizard`
+(`src/app/wizard/page.tsx`), rendered by a single client component,
+`src/components/wizard/Wizard.tsx`, which owns cross-step state and renders the
+current step — one route for the whole wizard rather than one route per step,
+since nothing needs to be deep-linked or persisted yet. Each step is its own
+component under `src/components/wizard/` (e.g. `Step1NutritionBasics.tsx`),
+taking an `onComplete` callback and handling its own form state/validation.
+The homepage (`src/app/page.tsx`) is a minimal landing page linking to `/wizard`.
 
 ### Restriction/preference precedence (resolved, binding on the recipe engine)
 
