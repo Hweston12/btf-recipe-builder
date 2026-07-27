@@ -12,16 +12,16 @@ AI-free math layer of the BTF Recipe Builder. All 24 unit tests pass as of this 
 | `blending.ts` | `calculateWaterTopUp` (post-blend water addition) and `calculateVerifiedDensity` (actual vs. target density after measuring final volume) |
 | `iddsi.ts` | `interpretIddsiFlowTest` — interprets a *physically performed* 10 mL syringe gravity flow test; `compareToTargetIddsiLevel` — checks a measured level against the recipe's target |
 | `index.ts` | Barrel export |
-| `calculations.test.ts` | Test suite (plain `node:assert`, no test framework dependency) |
+| `calculations.test.ts` | Test suite (Vitest) |
 
 ## Running it
 
 ```bash
-npm install --no-save typescript tsx
-npx tsx calculations.test.ts
+npm install
+npx vitest run
 ```
 
-No other dependencies. Everything here is a pure function — no network calls, no AI, no side effects — so it's straightforward to port into whatever frontend/backend framework you land on, or to call directly from the API layer described in section 3 of the plan.
+Everything here is a pure function — no network calls, no AI, no side effects — so it's straightforward to port into whatever frontend/backend framework you land on, or to call directly from the API layer described in section 3 of the plan.
 
 ## Design notes carried over from the plan
 
