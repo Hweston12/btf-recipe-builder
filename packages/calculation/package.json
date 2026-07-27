@@ -1,0 +1,14 @@
+{
+  "name": "@btf-recipe-builder/calculation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic calculation module for the BTF Recipe Builder (volume/density reconciliation, water top-up, IDDSI flow test interpretation).",
+  "main": "index.ts",
+  "scripts": {
+    "test": "tsx calculations.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
