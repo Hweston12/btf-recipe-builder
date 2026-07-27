@@ -8,7 +8,8 @@ A stateless calculator tool (no accounts, no server-side patient data) that help
 families, and caregivers build nutritionally complete, individualized blenderized tube feeding
 (BTF) recipes. Full system design, data schema, workflow, and example walkthrough live in
 `docs/architecture-plan.md` — read it before making architectural decisions; it is the source
-of truth, not this file.
+of truth, not this file. `TASKS.md` tracks build progress against that plan's roadmap — check
+it for current status and check items off there as work lands, rather than restating status here.
 
 **Current state:** early-stage. `packages/calculation` is implemented and tested. `apps/web` is
 otherwise a `create-next-app` scaffold (Next.js 16 / React 19 / Tailwind 4) — its homepage
