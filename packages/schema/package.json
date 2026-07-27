@@ -1,0 +1,15 @@
+{
+  "name": "@btf-recipe-builder/schema",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript types for the BTF Recipe Builder wizard intake schema (architecture-plan.md §4), plus a pure validator for the medical-restrictions/food-preferences precedence rules.",
+  "main": "index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}
