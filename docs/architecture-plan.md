@@ -59,7 +59,7 @@ Adapted directly from the proposal, this is the object the wizard produces and e
     "do_not_exceed_ul": true
   },
   "medical_restrictions": {
-    "allergens_excluded": ["peanut"],
+    "absolute_exclusions": ["peanut"],
     "gluten_free": true,
     "foods_to_limit": ["high sodium broth"]
   },
@@ -80,7 +80,12 @@ Adapted directly from the proposal, this is the object the wizard produces and e
 }
 ```
 
-Open question worth deciding early: should `medical_restrictions` distinguish **absolute exclusions**, **foods to limit**, and **disliked-but-permitted** as three separate arrays (as the proposal recommends) rather than folding "limit" and "excluded" together? This distinction is what stops the AI from treating a preference as a medical contraindication — recommend keeping it as three explicit fields rather than inferring from `food_preferences` status alone.
+**Resolved:** `medical_restrictions` keeps two arrays — `absolute_exclusions` and `foods_to_limit` — not three. A third `disliked_but_permitted` array was considered and dropped as redundant with `food_preferences.acceptable`.
+
+The gap that actually mattered wasn't a missing field, it was precedence: nothing said what happens when the same ingredient appears in both `medical_restrictions` and `food_preferences`. Two rules are now locked in, and the recipe engine (§5) and the wizard both have to honor them:
+
+1. **Absolute exclusion always wins.** An ingredient in `absolute_exclusions` must never appear in a generated recipe, no matter what `food_preferences` says about it — including if it's marked `preferred`. If a wizard user marks the same food `preferred` in step 4 after excluding it in step 3, that's a contradiction the wizard must flag and force the user to resolve, not something the app silently resolves for them.
+2. **A medical limit caps a taste preference, it doesn't lose to it.** An ingredient in `foods_to_limit` can still be used even if it's also `preferred` — the medical restriction constrains quantity, and how much the family likes the food has no bearing on that cap.
 
 ## 5. Recipe generation
 

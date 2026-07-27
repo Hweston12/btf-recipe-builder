@@ -104,9 +104,13 @@ Next.js App Router scaffold. It depends on `@btf-recipe-builder/calculation` via
 this exists only as a smoke test proving the workspace link works, not as real UI. Routes,
 components, and styling direction beyond that one page reflect no real decision yet.
 
-### Open design question to be aware of
+### Restriction/preference precedence (resolved, binding on the recipe engine)
 
-`docs/architecture-plan.md` §4 flags an undecided schema question: whether `medical_restrictions`
-should split into three explicit arrays (absolute exclusion / limit / disliked-but-permitted)
-rather than folding "limit" into `food_preferences` status. Check that section before building
-anything that consumes or produces the restrictions schema.
+`docs/architecture-plan.md` §4 defines `medical_restrictions` with two arrays —
+`absolute_exclusions` and `foods_to_limit` — and two precedence rules that any code touching
+`food_preferences` or the recipe engine must honor:
+
+1. **Absolute exclusion always wins**, even if the same ingredient is separately marked `preferred`
+   in `food_preferences`. That contradiction must be flagged to the user, never silently resolved.
+2. **A medical limit caps a taste preference, it doesn't lose to it** — `foods_to_limit` constrains
+   quantity regardless of how strongly the food is preferred.
