@@ -1,0 +1,14 @@
+{
+  "name": "btf-recipe-builder",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@btf-recipe-builder/web",
+    "build": "npm run build --workspace=@btf-recipe-builder/web",
+    "test": "npm run test --workspace=@btf-recipe-builder/calculation",
+    "test:watch": "npm run test:watch --workspace=@btf-recipe-builder/calculation"
+  }
+}
