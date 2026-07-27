@@ -96,6 +96,20 @@ Behavioral details worth knowing before modifying this module:
   values) but never throws on a three-value mismatch — it returns `inconsistencyWarning` instead,
   since silently overwriting a user-entered value is treated as a safety hazard, not just a UX nit.
 
+### `packages/schema`
+
+Small, pure, dependency-free, independently testable — same pattern as
+`packages/calculation`. Holds the TypeScript types for the wizard's output object
+(`docs/architecture-plan.md` §4) plus a validator for the exclusion/preference
+precedence rule above. Consumed by `apps/web` for the wizard UI and, eventually, by
+the server-side recipe-engine route (architecture plan §3).
+
+| File | Responsibility |
+|---|---|
+| `types.ts` | `PatientIntake` and its component interfaces — `Patient`, `Prescription`, `MedicalRestrictions`, `FoodPreferences`, `PracticalConstraints`, `Feeding` |
+| `validation.ts` | `validateFoodRestrictions` — flags an `absolute_exclusions` / `food_preferences` contradiction (rule 1); doesn't check `foods_to_limit`, since overlap there is expected (rule 2) |
+| `index.ts` | Barrel export |
+
 ### `apps/web`
 
 Next.js App Router scaffold. It depends on `@btf-recipe-builder/calculation` via the workspace
@@ -114,3 +128,13 @@ components, and styling direction beyond that one page reflect no real decision 
    in `food_preferences`. That contradiction must be flagged to the user, never silently resolved.
 2. **A medical limit caps a taste preference, it doesn't lose to it** — `foods_to_limit` constrains
    quantity regardless of how strongly the food is preferred.
+
+## Keeping this file current
+
+Before finishing any task that adds a new package/workspace, introduces a
+new architectural pattern, or changes how existing pieces connect, check
+whether this file's Architecture section needs an update.
+
+If it does: draft the proposed addition and ask for confirmation before
+writing it. Do not silently edit this file. Keep entries short (1-2
+sentences), matching the existing table's format.
