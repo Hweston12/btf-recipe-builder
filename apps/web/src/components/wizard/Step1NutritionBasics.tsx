@@ -18,6 +18,7 @@ export interface Step1Output {
 
 interface Step1NutritionBasicsProps {
   onComplete: (output: Step1Output) => void;
+  initialValues?: Step1Output | null;
 }
 
 function parseOptionalNumber(value: string): number | undefined {
@@ -26,14 +27,29 @@ function parseOptionalNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export default function Step1NutritionBasics({ onComplete }: Step1NutritionBasicsProps) {
-  const [ageYears, setAgeYears] = useState("");
-  const [weightKg, setWeightKg] = useState("");
-  const [sexForDri, setSexForDri] = useState<Patient["sexForDri"] | "">("");
+export default function Step1NutritionBasics({
+  onComplete,
+  initialValues,
+}: Step1NutritionBasicsProps) {
+  const [ageYears, setAgeYears] = useState(
+    initialValues ? String(initialValues.patient.ageYears) : ""
+  );
+  const [weightKg, setWeightKg] = useState(
+    initialValues ? String(initialValues.patient.weightKg) : ""
+  );
+  const [sexForDri, setSexForDri] = useState<Patient["sexForDri"] | "">(
+    initialValues?.patient.sexForDri ?? ""
+  );
 
-  const [caloriesKcal, setCaloriesKcal] = useState("");
-  const [finalVolumeMl, setFinalVolumeMl] = useState("");
-  const [densityKcalPerMl, setDensityKcalPerMl] = useState("");
+  const [caloriesKcal, setCaloriesKcal] = useState(
+    initialValues ? String(initialValues.prescriptionCore.caloriesKcal) : ""
+  );
+  const [finalVolumeMl, setFinalVolumeMl] = useState(
+    initialValues ? String(initialValues.prescriptionCore.finalVolumeMl) : ""
+  );
+  const [densityKcalPerMl, setDensityKcalPerMl] = useState(
+    initialValues ? String(initialValues.prescriptionCore.densityKcalPerMl) : ""
+  );
 
   const prescriptionInputs = useMemo(
     () => ({
@@ -127,8 +143,8 @@ export default function Step1NutritionBasics({ onComplete }: Step1NutritionBasic
       </fieldset>
 
       <fieldset className="space-y-3">
-        <legend className="text-sm font-medium">
-          Prescription — enter any two, we&apos;ll calculate the third
+        <legend className="text-sm font-medium text-neutral-500">
+          Prescription — enter any two, the third is calculated automatically
         </legend>
 
         <label className="block text-sm">
@@ -180,14 +196,24 @@ export default function Step1NutritionBasics({ onComplete }: Step1NutritionBasic
 
       {prescriptionResult && (
         <div className="space-y-1 rounded border border-neutral-300 p-4 text-sm dark:border-neutral-700">
-          <p>{prescriptionResult.caloriesKcal} kcal</p>
-          <p>{prescriptionResult.finalVolumeMl} mL final volume</p>
-          <p>{prescriptionResult.densityKcalPerMl} kcal/mL density</p>
-          {prescriptionResult.calculatedField !== "none" && (
-            <p className="text-neutral-500">
-              Calculated from your other two entries: {prescriptionResult.calculatedField}
-            </p>
-          )}
+          <p className="flex justify-between">
+            <span>{prescriptionResult.caloriesKcal} kcal</span>
+            {prescriptionResult.calculatedField === "caloriesKcal" && (
+              <span className="text-green-600 dark:text-green-400">Recommended</span>
+            )}
+          </p>
+          <p className="flex justify-between">
+            <span>{prescriptionResult.finalVolumeMl} mL final volume</span>
+            {prescriptionResult.calculatedField === "finalVolumeMl" && (
+              <span className="text-green-600 dark:text-green-400">Recommended</span>
+            )}
+          </p>
+          <p className="flex justify-between">
+            <span>{prescriptionResult.densityKcalPerMl} kcal/mL density</span>
+            {prescriptionResult.calculatedField === "densityKcalPerMl" && (
+              <span className="text-green-600 dark:text-green-400">Recommended</span>
+            )}
+          </p>
           {prescriptionResult.inconsistencyWarning && (
             <p className="text-amber-600 dark:text-amber-400">
               {prescriptionResult.inconsistencyWarning}

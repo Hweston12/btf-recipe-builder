@@ -5,23 +5,30 @@ import Step1NutritionBasics, { type Step1Output } from "./Step1NutritionBasics";
 import Step2FeedingSetup, { type Step2Output } from "./Step2FeedingSetup";
 
 export default function Wizard() {
+  const [step, setStep] = useState(1);
   const [step1Output, setStep1Output] = useState<Step1Output | null>(null);
   const [step2Output, setStep2Output] = useState<Step2Output | null>(null);
 
-  if (!step1Output) {
+  if (step === 1) {
     return (
       <div className="mx-auto w-full max-w-md p-8">
         <h1 className="text-xl font-medium">Step 1 of 5 — Nutrition basics</h1>
         <p className="mb-6 mt-1 text-sm text-neutral-500">
           Enter the patient&apos;s age, weight, and sex, plus any two of daily calories, target
-          volume, or target density — we&apos;ll calculate the third.
+          volume, or target density
         </p>
-        <Step1NutritionBasics onComplete={setStep1Output} />
+        <Step1NutritionBasics
+          initialValues={step1Output}
+          onComplete={(output) => {
+            setStep1Output(output);
+            setStep(2);
+          }}
+        />
       </div>
     );
   }
 
-  if (!step2Output) {
+  if (step === 2) {
     return (
       <div className="mx-auto w-full max-w-md p-8">
         <h1 className="text-xl font-medium">Step 2 of 5 — Feeding setup</h1>
@@ -30,8 +37,11 @@ export default function Wizard() {
           team is targeting.
         </p>
         <Step2FeedingSetup
-          onComplete={setStep2Output}
-          onBack={() => setStep1Output(null)}
+          onComplete={(output) => {
+            setStep2Output(output);
+            setStep(3);
+          }}
+          onBack={() => setStep(1)}
         />
       </div>
     );
@@ -47,7 +57,7 @@ export default function Wizard() {
       <pre className="overflow-x-auto rounded bg-neutral-100 p-4 text-xs dark:bg-neutral-800">
         {JSON.stringify({ step1Output, step2Output }, null, 2)}
       </pre>
-      <button type="button" onClick={() => setStep2Output(null)} className="text-sm underline">
+      <button type="button" onClick={() => setStep(2)} className="text-sm underline">
         Back
       </button>
     </div>
