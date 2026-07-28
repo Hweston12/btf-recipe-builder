@@ -18,7 +18,7 @@ reason, and wait for confirmation before starting.
 - [x] Calculation module (`packages/calculation`) — deterministic math, tested
 - [x] Wizard intake schema + exclusion/preference precedence validator (`packages/schema`)
 - [x] Wizard Step 1 — Nutrition basics (wire to `reconcilePrescription`)
-- [ ] Wizard Step 2 — Feeding setup
+- [x] Wizard Step 2 — Feeding setup
 - [ ] Wizard Step 3 — Safety & restrictions (wire `validateFoodRestrictions`)
 - [ ] Wizard Step 4 — Food preferences + practical constraints
 - [ ] Wizard Step 5 — Generate & review (recipe engine call + confirmation checklist)
