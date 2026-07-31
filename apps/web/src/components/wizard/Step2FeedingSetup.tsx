@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { IddsiLevel } from "@btf-recipe-builder/calculation";
-import type { Feeding } from "@btf-recipe-builder/schema";
+import type { Feeding, MacroTargets } from "@btf-recipe-builder/schema";
 
 const IDDSI_TARGET_OPTIONS: { level: IddsiLevel; name: string }[] = [
   { level: 0, name: "Thin" },
@@ -17,6 +17,9 @@ export interface Step2Output {
   prescriptionRest: {
     feedsPerDay: number;
     iddsiTarget: IddsiLevel;
+    macroTargets: MacroTargets;
+    micronutrientMinimumPercentDri: number;
+    doNotExceedUl: boolean;
   };
 }
 
@@ -51,8 +54,41 @@ export default function Step2FeedingSetup({
     initialValues?.prescriptionRest.iddsiTarget ?? ""
   );
 
+  const [carbohydratePercentMin, setCarbohydratePercentMin] = useState(
+    initialValues ? String(initialValues.prescriptionRest.macroTargets.carbohydratePercent[0]) : ""
+  );
+  const [carbohydratePercentMax, setCarbohydratePercentMax] = useState(
+    initialValues ? String(initialValues.prescriptionRest.macroTargets.carbohydratePercent[1]) : ""
+  );
+  const [fatPercentMin, setFatPercentMin] = useState(
+    initialValues ? String(initialValues.prescriptionRest.macroTargets.fatPercent[0]) : ""
+  );
+  const [fatPercentMax, setFatPercentMax] = useState(
+    initialValues ? String(initialValues.prescriptionRest.macroTargets.fatPercent[1]) : ""
+  );
+  const [proteinPercentMin, setProteinPercentMin] = useState(
+    initialValues ? String(initialValues.prescriptionRest.macroTargets.proteinPercent[0]) : ""
+  );
+  const [proteinPercentMax, setProteinPercentMax] = useState(
+    initialValues ? String(initialValues.prescriptionRest.macroTargets.proteinPercent[1]) : ""
+  );
+  const [micronutrientMinimumPercentDri, setMicronutrientMinimumPercentDri] = useState(
+    initialValues ? String(initialValues.prescriptionRest.micronutrientMinimumPercentDri) : "100"
+  );
+  const [doNotExceedUl, setDoNotExceedUl] = useState(
+    initialValues?.prescriptionRest.doNotExceedUl ?? true
+  );
+
   const parsedTubeSizeFr = Number(tubeSizeFr);
   const parsedFeedsPerDay = Number(feedsPerDay);
+
+  const parsedCarbohydratePercentMin = Number(carbohydratePercentMin);
+  const parsedCarbohydratePercentMax = Number(carbohydratePercentMax);
+  const parsedFatPercentMin = Number(fatPercentMin);
+  const parsedFatPercentMax = Number(fatPercentMax);
+  const parsedProteinPercentMin = Number(proteinPercentMin);
+  const parsedProteinPercentMax = Number(proteinPercentMax);
+  const parsedMicronutrientMinimumPercentDri = Number(micronutrientMinimumPercentDri);
 
   const feedingValid =
     route !== "" &&
@@ -61,11 +97,42 @@ export default function Step2FeedingSetup({
     parsedTubeSizeFr > 0 &&
     delivery !== "";
 
+  function isValidPercentRange(min: string, max: string, parsedMin: number, parsedMax: number) {
+    return (
+      min.trim() !== "" &&
+      max.trim() !== "" &&
+      Number.isFinite(parsedMin) &&
+      Number.isFinite(parsedMax) &&
+      parsedMin >= 0 &&
+      parsedMax <= 100 &&
+      parsedMin <= parsedMax
+    );
+  }
+
+  const macroTargetsValid =
+    isValidPercentRange(
+      carbohydratePercentMin,
+      carbohydratePercentMax,
+      parsedCarbohydratePercentMin,
+      parsedCarbohydratePercentMax
+    ) &&
+    isValidPercentRange(fatPercentMin, fatPercentMax, parsedFatPercentMin, parsedFatPercentMax) &&
+    isValidPercentRange(
+      proteinPercentMin,
+      proteinPercentMax,
+      parsedProteinPercentMin,
+      parsedProteinPercentMax
+    );
+
   const prescriptionRestValid =
     feedsPerDay.trim() !== "" &&
     Number.isFinite(parsedFeedsPerDay) &&
     parsedFeedsPerDay > 0 &&
-    iddsiTarget !== "";
+    iddsiTarget !== "" &&
+    macroTargetsValid &&
+    micronutrientMinimumPercentDri.trim() !== "" &&
+    Number.isFinite(parsedMicronutrientMinimumPercentDri) &&
+    parsedMicronutrientMinimumPercentDri > 0;
 
   const canContinue = feedingValid && prescriptionRestValid;
 
@@ -81,6 +148,13 @@ export default function Step2FeedingSetup({
       prescriptionRest: {
         feedsPerDay: parsedFeedsPerDay,
         iddsiTarget,
+        macroTargets: {
+          carbohydratePercent: [parsedCarbohydratePercentMin, parsedCarbohydratePercentMax],
+          fatPercent: [parsedFatPercentMin, parsedFatPercentMax],
+          proteinPercent: [parsedProteinPercentMin, parsedProteinPercentMax],
+        },
+        micronutrientMinimumPercentDri: parsedMicronutrientMinimumPercentDri,
+        doNotExceedUl,
       },
     });
   }
@@ -181,6 +255,121 @@ export default function Step2FeedingSetup({
         </label>
         <p className="text-sm text-neutral-500">
         </p>
+      </fieldset>
+
+      <fieldset className="space-y-3">
+        <legend className="text-sm font-medium">Macro &amp; micronutrient targets</legend>
+        <p className="text-sm text-neutral-500">
+          Percent of total calories, as a min&ndash;max range for each macronutrient.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-sm">
+            Carbohydrate % (min)
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="any"
+              value={carbohydratePercentMin}
+              onChange={(e) => setCarbohydratePercentMin(e.target.value)}
+              className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </label>
+          <label className="block text-sm">
+            Carbohydrate % (max)
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="any"
+              value={carbohydratePercentMax}
+              onChange={(e) => setCarbohydratePercentMax(e.target.value)}
+              className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </label>
+
+          <label className="block text-sm">
+            Fat % (min)
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="any"
+              value={fatPercentMin}
+              onChange={(e) => setFatPercentMin(e.target.value)}
+              className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </label>
+          <label className="block text-sm">
+            Fat % (max)
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="any"
+              value={fatPercentMax}
+              onChange={(e) => setFatPercentMax(e.target.value)}
+              className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </label>
+
+          <label className="block text-sm">
+            Protein % (min)
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="any"
+              value={proteinPercentMin}
+              onChange={(e) => setProteinPercentMin(e.target.value)}
+              className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </label>
+          <label className="block text-sm">
+            Protein % (max)
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="any"
+              value={proteinPercentMax}
+              onChange={(e) => setProteinPercentMax(e.target.value)}
+              className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </label>
+        </div>
+
+        {!macroTargetsValid &&
+          [carbohydratePercentMin, carbohydratePercentMax, fatPercentMin, fatPercentMax, proteinPercentMin, proteinPercentMax].some(
+            (v) => v.trim() !== ""
+          ) && (
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              Each range needs a min and max between 0 and 100, with min &le; max.
+            </p>
+          )}
+
+        <label className="block text-sm">
+          Micronutrient minimum (% of DRI)
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={micronutrientMinimumPercentDri}
+            onChange={(e) => setMicronutrientMinimumPercentDri(e.target.value)}
+            className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          />
+        </label>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={doNotExceedUl}
+            onChange={(e) => setDoNotExceedUl(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-300 dark:border-neutral-700"
+          />
+          Do not exceed tolerable upper limits for any micronutrient
+        </label>
       </fieldset>
 
       <div className="flex gap-3">
