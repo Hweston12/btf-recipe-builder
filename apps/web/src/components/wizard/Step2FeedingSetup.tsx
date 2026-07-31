@@ -23,16 +23,33 @@ export interface Step2Output {
 interface Step2FeedingSetupProps {
   onComplete: (output: Step2Output) => void;
   onBack: () => void;
+  initialValues?: Step2Output | null;
 }
 
-export default function Step2FeedingSetup({ onComplete, onBack }: Step2FeedingSetupProps) {
-  const [route, setRoute] = useState<Feeding["route"] | "">("");
-  const [tubeSizeFr, setTubeSizeFr] = useState("");
-  const [delivery, setDelivery] = useState<Feeding["delivery"] | "">("");
-  const [historyOfClogging, setHistoryOfClogging] = useState(false);
+export default function Step2FeedingSetup({
+  onComplete,
+  onBack,
+  initialValues,
+}: Step2FeedingSetupProps) {
+  const [route, setRoute] = useState<Feeding["route"] | "">(
+    initialValues?.feeding.route ?? ""
+  );
+  const [tubeSizeFr, setTubeSizeFr] = useState(
+    initialValues ? String(initialValues.feeding.tubeSizeFr) : ""
+  );
+  const [delivery, setDelivery] = useState<Feeding["delivery"] | "">(
+    initialValues?.feeding.delivery ?? ""
+  );
+  const [historyOfClogging, setHistoryOfClogging] = useState(
+    initialValues?.feeding.historyOfClogging ?? false
+  );
 
-  const [feedsPerDay, setFeedsPerDay] = useState("");
-  const [iddsiTarget, setIddsiTarget] = useState<IddsiLevel | "">("");
+  const [feedsPerDay, setFeedsPerDay] = useState(
+    initialValues ? String(initialValues.prescriptionRest.feedsPerDay) : ""
+  );
+  const [iddsiTarget, setIddsiTarget] = useState<IddsiLevel | "">(
+    initialValues?.prescriptionRest.iddsiTarget ?? ""
+  );
 
   const parsedTubeSizeFr = Number(tubeSizeFr);
   const parsedFeedsPerDay = Number(feedsPerDay);

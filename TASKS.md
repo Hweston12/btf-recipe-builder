@@ -1,5 +1,5 @@
 # TASKS.md
-_Last updated: 2026-07-27_
+_Last updated: 2026-07-31_
 Source of truth for build progress. Derived from the phased roadmap in
 `docs/architecture-plan.md` §10 — that doc still owns *what* and *why*; this
 file only tracks *is it done*. Check items off as they land; don't restate
@@ -19,8 +19,8 @@ reason, and wait for confirmation before starting.
 - [x] Wizard intake schema + exclusion/preference precedence validator (`packages/schema`)
 - [x] Wizard Step 1 — Nutrition basics (wire to `reconcilePrescription`)
 - [x] Wizard Step 2 — Feeding setup
-- [ ] Wizard Step 3 — Safety & restrictions (wire `validateFoodRestrictions`)
-- [ ] Wizard Step 4 — Food preferences + practical constraints
+- [x] Wizard Step 3 — Safety & restrictions
+- [ ] Wizard Step 4 — Food preferences + practical constraints (wire `validateFoodRestrictions` against Step 3's medical restrictions)
 - [ ] Wizard Step 5 — Generate & review (recipe engine call + confirmation checklist)
 - [ ] API layer — validate/normalize wizard input server-side
 - [ ] Recipe engine — constrained AI recipe generation (server-side Claude API call)

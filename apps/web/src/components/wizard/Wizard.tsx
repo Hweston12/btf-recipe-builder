@@ -3,11 +3,13 @@
 import { useState } from "react";
 import Step1NutritionBasics, { type Step1Output } from "./Step1NutritionBasics";
 import Step2FeedingSetup, { type Step2Output } from "./Step2FeedingSetup";
+import Step3SafetyRestrictions, { type Step3Output } from "./Step3SafetyRestrictions";
 
 export default function Wizard() {
   const [step, setStep] = useState(1);
   const [step1Output, setStep1Output] = useState<Step1Output | null>(null);
   const [step2Output, setStep2Output] = useState<Step2Output | null>(null);
+  const [step3Output, setStep3Output] = useState<Step3Output | null>(null);
 
   if (step === 1) {
     return (
@@ -37,6 +39,7 @@ export default function Wizard() {
           team is targeting.
         </p>
         <Step2FeedingSetup
+          initialValues={step2Output}
           onComplete={(output) => {
             setStep2Output(output);
             setStep(3);
@@ -47,17 +50,37 @@ export default function Wizard() {
     );
   }
 
+  if (step === 3) {
+    return (
+      <div className="mx-auto w-full max-w-md p-8">
+        <h1 className="text-xl font-medium">Step 3 of 5 — Safety &amp; restrictions</h1>
+        <p className="mb-6 mt-1 text-sm text-neutral-500">
+          List any ingredients that must be excluded entirely, any that should be limited, and
+          whether the recipe needs to be gluten-free.
+        </p>
+        <Step3SafetyRestrictions
+          initialValues={step3Output}
+          onComplete={(output) => {
+            setStep3Output(output);
+            setStep(4);
+          }}
+          onBack={() => setStep(2)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-md space-y-4 p-8">
-      <h1 className="text-xl font-medium">Step 2 complete</h1>
+      <h1 className="text-xl font-medium">Step 3 complete</h1>
       <p className="text-sm text-neutral-500">
-        Steps 3&ndash;5 (safety &amp; restrictions, food preferences, and recipe generation)
-        aren&apos;t built yet. Here&apos;s what was captured:
+        Steps 4&ndash;5 (food preferences and recipe generation) aren&apos;t built yet. Here&apos;s
+        what was captured:
       </p>
       <pre className="overflow-x-auto rounded bg-neutral-100 p-4 text-xs dark:bg-neutral-800">
-        {JSON.stringify({ step1Output, step2Output }, null, 2)}
+        {JSON.stringify({ step1Output, step2Output, step3Output }, null, 2)}
       </pre>
-      <button type="button" onClick={() => setStep(2)} className="text-sm underline">
+      <button type="button" onClick={() => setStep(3)} className="text-sm underline">
         Back
       </button>
     </div>
