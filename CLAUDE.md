@@ -24,11 +24,15 @@ was a deliberate choice, not a scaffold default, so don't reach for Jest, pnpm, 
 reason to change it. Run from the repo root:
 
 ```bash
-npm run test         # runs the calculation package's Vitest suite (vitest run)
+npm run test         # runs calculation + schema + apps/web's Vitest suites (vitest run)
 npm run test:watch   # same, in watch mode (vitest)
 npm run dev          # next dev, in apps/web
 npm run build        # next build, in apps/web
 ```
+
+`apps/web`'s Vitest suite runs under `jsdom` with `@testing-library/react`, configured in
+`apps/web/vitest.config.ts` — this is the sanctioned way to verify wizard/UI behavior given this
+machine's browser-automation constraint (see Environment Constraints below).
 
 To run/filter the calculation package's tests directly:
 
@@ -122,6 +126,11 @@ since nothing needs to be deep-linked or persisted yet. Each step is its own
 component under `src/components/wizard/` (e.g. `Step1NutritionBasics.tsx`),
 taking an `onComplete` callback and handling its own form state/validation.
 The homepage (`src/app/page.tsx`) is a minimal landing page linking to `/wizard`.
+`src/lib/assemblePatientIntake.ts` combines the four wizard steps' outputs into one
+`PatientIntake`. `src/lib/recipeEngine/` holds the `CandidateRecipe` shape and a
+`mockRecipeEngine.ts` that stands in for the real (unbuilt) server-side recipe engine — Step 5
+calls it directly for now; only this file's body should need to change once a real API-backed
+engine lands.
 
 ### Restriction/preference precedence (resolved, binding on the recipe engine)
 

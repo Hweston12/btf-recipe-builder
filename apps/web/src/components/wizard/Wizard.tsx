@@ -5,6 +5,8 @@ import Step1NutritionBasics, { type Step1Output } from "./Step1NutritionBasics";
 import Step2FeedingSetup, { type Step2Output } from "./Step2FeedingSetup";
 import Step3SafetyRestrictions, { type Step3Output } from "./Step3SafetyRestrictions";
 import Step4FoodPreferences, { type Step4Output } from "./Step4FoodPreferences";
+import Step5GenerateReview, { type Step5Output } from "./Step5GenerateReview";
+import { assemblePatientIntake } from "@/lib/assemblePatientIntake";
 
 export default function Wizard() {
   const [step, setStep] = useState(1);
@@ -12,6 +14,7 @@ export default function Wizard() {
   const [step2Output, setStep2Output] = useState<Step2Output | null>(null);
   const [step3Output, setStep3Output] = useState<Step3Output | null>(null);
   const [step4Output, setStep4Output] = useState<Step4Output | null>(null);
+  const [step5Output, setStep5Output] = useState<Step5Output | null>(null);
 
   if (step === 1) {
     return (
@@ -93,18 +96,23 @@ export default function Wizard() {
     );
   }
 
-  return (
-    <div className="mx-auto w-full max-w-md space-y-4 p-8">
-      <h1 className="text-xl font-medium">Step 4 complete</h1>
-      <p className="text-sm text-neutral-500">
-        Step 5 (generate &amp; review) isn&apos;t built yet. Here&apos;s what was captured:
-      </p>
-      <pre className="overflow-x-auto rounded bg-neutral-100 p-4 text-xs dark:bg-neutral-800">
-        {JSON.stringify({ step1Output, step2Output, step3Output, step4Output }, null, 2)}
-      </pre>
-      <button type="button" onClick={() => setStep(4)} className="text-sm underline">
-        Back
-      </button>
-    </div>
-  );
+  if (step === 5 && step1Output && step2Output && step3Output && step4Output) {
+    const intake = assemblePatientIntake(step1Output, step2Output, step3Output, step4Output);
+    return (
+      <div className="mx-auto w-full max-w-md p-8 print:max-w-none print:p-0">
+        <h1 className="text-xl font-medium print:hidden">Step 5 of 5 &mdash; Generate &amp; review</h1>
+        <p className="mb-6 mt-1 text-sm text-neutral-500 print:hidden">
+          Review candidate recipes, pick one, and confirm the safety checklist before use.
+        </p>
+        <Step5GenerateReview
+          intake={intake}
+          initialValues={step5Output}
+          onComplete={setStep5Output}
+          onBack={() => setStep(4)}
+        />
+      </div>
+    );
+  }
+
+  return null;
 }
