@@ -4,12 +4,14 @@ import { useState } from "react";
 import Step1NutritionBasics, { type Step1Output } from "./Step1NutritionBasics";
 import Step2FeedingSetup, { type Step2Output } from "./Step2FeedingSetup";
 import Step3SafetyRestrictions, { type Step3Output } from "./Step3SafetyRestrictions";
+import Step4FoodPreferences, { type Step4Output } from "./Step4FoodPreferences";
 
 export default function Wizard() {
   const [step, setStep] = useState(1);
   const [step1Output, setStep1Output] = useState<Step1Output | null>(null);
   const [step2Output, setStep2Output] = useState<Step2Output | null>(null);
   const [step3Output, setStep3Output] = useState<Step3Output | null>(null);
+  const [step4Output, setStep4Output] = useState<Step4Output | null>(null);
 
   if (step === 1) {
     return (
@@ -70,17 +72,37 @@ export default function Wizard() {
     );
   }
 
+  if (step === 4 && step3Output) {
+    return (
+      <div className="mx-auto w-full max-w-md p-8">
+        <h1 className="text-xl font-medium">Step 4 of 5 — Food preferences &amp; practical constraints</h1>
+        <p className="mb-6 mt-1 text-sm text-neutral-500">
+          Rate foods you prefer, tolerate, use sparingly, or want excluded, and set your budget,
+          blender, prep frequency, and ingredient cap.
+        </p>
+        <Step4FoodPreferences
+          medicalRestrictions={step3Output.medicalRestrictions}
+          initialValues={step4Output}
+          onComplete={(output) => {
+            setStep4Output(output);
+            setStep(5);
+          }}
+          onBack={() => setStep(3)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-md space-y-4 p-8">
-      <h1 className="text-xl font-medium">Step 3 complete</h1>
+      <h1 className="text-xl font-medium">Step 4 complete</h1>
       <p className="text-sm text-neutral-500">
-        Steps 4&ndash;5 (food preferences and recipe generation) aren&apos;t built yet. Here&apos;s
-        what was captured:
+        Step 5 (generate &amp; review) isn&apos;t built yet. Here&apos;s what was captured:
       </p>
       <pre className="overflow-x-auto rounded bg-neutral-100 p-4 text-xs dark:bg-neutral-800">
-        {JSON.stringify({ step1Output, step2Output, step3Output }, null, 2)}
+        {JSON.stringify({ step1Output, step2Output, step3Output, step4Output }, null, 2)}
       </pre>
-      <button type="button" onClick={() => setStep(3)} className="text-sm underline">
+      <button type="button" onClick={() => setStep(4)} className="text-sm underline">
         Back
       </button>
     </div>
