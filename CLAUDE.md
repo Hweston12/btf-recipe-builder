@@ -106,13 +106,14 @@ Behavioral details worth knowing before modifying this module:
 Small, pure, dependency-free, independently testable — same pattern as
 `packages/calculation`. Holds the TypeScript types for the wizard's output object
 (`docs/architecture-plan.md` §4) plus a validator for the exclusion/preference
-precedence rule above. Consumed by `apps/web` for the wizard UI and, eventually, by
-the server-side recipe-engine route (architecture plan §3).
+precedence rule above. Consumed by `apps/web` for the wizard UI and by the server-side
+`/api/generate-recipes` route (architecture plan §3).
 
 | File | Responsibility |
 |---|---|
 | `types.ts` | `PatientIntake` and its component interfaces — `Patient`, `Prescription`, `MedicalRestrictions`, `FoodPreferences`, `PracticalConstraints`, `Feeding` |
 | `validation.ts` | `validateFoodRestrictions` — flags an `absolute_exclusions` / `food_preferences` contradiction (rule 1); doesn't check `foods_to_limit`, since overlap there is expected (rule 2) |
+| `validatePatientIntake.ts` | `validatePatientIntake` — runtime structural/range validator for an untrusted `PatientIntake` payload (e.g. an API route body); collects every failing field rather than stopping at the first, never throws |
 | `index.ts` | Barrel export |
 
 ### `apps/web`
@@ -128,9 +129,13 @@ taking an `onComplete` callback and handling its own form state/validation.
 The homepage (`src/app/page.tsx`) is a minimal landing page linking to `/wizard`.
 `src/lib/assemblePatientIntake.ts` combines the four wizard steps' outputs into one
 `PatientIntake`. `src/lib/recipeEngine/` holds the `CandidateRecipe` shape and a
-`mockRecipeEngine.ts` that stands in for the real (unbuilt) server-side recipe engine — Step 5
-calls it directly for now; only this file's body should need to change once a real API-backed
-engine lands.
+`mockRecipeEngine.ts` that stands in for the real (unbuilt) server-side recipe engine; only
+this file's body should need to change once a real API-backed engine lands. A server-side
+route, `src/app/api/generate-recipes/route.ts`, re-validates the assembled `PatientIntake`
+(via `validatePatientIntake`/`validateFoodRestrictions` and `reconcilePrescription`) before
+calling the recipe engine — the "API layer" from architecture-plan.md §3. `Step5GenerateReview.tsx`
+calls this route through `src/lib/recipeEngine/fetchCandidateRecipes.ts` rather than importing
+`mockRecipeEngine.ts` directly.
 
 ### Restriction/preference precedence (resolved, binding on the recipe engine)
 

@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Step5GenerateReview from "./Step5GenerateReview";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
+import { generateCandidateRecipes } from "@/lib/recipeEngine/mockRecipeEngine";
 
 const intake: PatientIntake = {
   patient: { ageYears: 45, sexForDri: "female", weightKg: 60 },
@@ -37,6 +38,20 @@ async function selectFirstCandidate() {
 }
 
 describe("Step5GenerateReview", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => {
+        const candidates = await generateCandidateRecipes(intake);
+        return new Response(JSON.stringify(candidates), { status: 200 });
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("shows a loading state before candidates arrive, then renders candidate cards", async () => {
     render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
 
@@ -150,5 +165,20 @@ describe("Step5GenerateReview", () => {
       reviewedNutrition: true,
       physicianReminderAcknowledged: true,
     });
+  });
+
+  it("surfaces a fetch failure as an error message instead of an endless loading state", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "Intake failed validation." }), { status: 400 })
+      )
+    );
+
+    render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/intake failed validation/i);
+    expect(screen.queryByText("Option 1")).toBeNull();
+    expect(screen.queryByText(/generating candidate recipes/i)).toBeNull();
   });
 });

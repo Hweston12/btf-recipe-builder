@@ -9,7 +9,7 @@ import {
   type IddsiLevel,
 } from "@btf-recipe-builder/calculation";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
-import { generateCandidateRecipes } from "@/lib/recipeEngine/mockRecipeEngine";
+import { fetchCandidateRecipes } from "@/lib/recipeEngine/fetchCandidateRecipes";
 import type { CandidateRecipe } from "@/lib/recipeEngine/types";
 import RecipeCard from "./RecipeCard";
 
@@ -50,6 +50,7 @@ export default function Step5GenerateReview({
   initialValues,
 }: Step5GenerateReviewProps) {
   const [candidates, setCandidates] = useState<CandidateRecipe[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
     initialValues?.selectedCandidateId ?? null
   );
@@ -79,9 +80,15 @@ export default function Step5GenerateReview({
 
   useEffect(() => {
     let cancelled = false;
-    generateCandidateRecipes(intake).then((result) => {
-      if (!cancelled) setCandidates(result);
-    });
+    fetchCandidateRecipes(intake)
+      .then((result) => {
+        if (!cancelled) setCandidates(result);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to generate candidate recipes.");
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -154,6 +161,14 @@ export default function Step5GenerateReview({
       },
       physicianReminderAcknowledged,
     });
+  }
+
+  if (error) {
+    return (
+      <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        {error}
+      </p>
+    );
   }
 
   if (candidates === null) {

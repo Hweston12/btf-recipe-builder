@@ -22,7 +22,7 @@ reason, and wait for confirmation before starting.
 - [x] Wizard Step 3 — Safety & restrictions
 - [x] Wizard Step 4 — Food preferences + practical constraints (wire `validateFoodRestrictions` against Step 3's medical restrictions)
 - [x] Wizard Step 5 — Generate & review (recipe engine call + confirmation checklist)
-- [ ] API layer — validate/normalize wizard input server-side
+- [x] API layer — validate/normalize wizard input server-side
 - [ ] Recipe engine — constrained AI recipe generation (server-side Claude API call)
 - [ ] AI-estimated nutrient display
 - [ ] Status pipeline (draft → nutrient-checked → volume-confirmed → IDDSI-tested)
