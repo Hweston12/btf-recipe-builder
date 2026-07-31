@@ -143,3 +143,25 @@ whether this file's Architecture section needs an update.
 If it does: draft the proposed addition and ask for confirmation before
 writing it. Do not silently edit this file. Keep entries short (1-2
 sentences), matching the existing table's format.
+
+## Environment Constraints
+
+### Browser automation is not available
+This machine runs macOS Monterey (mac12-arm64), which is not a supported
+target for current Playwright browser binaries — Chromium and WebKit
+downloads both fail. No `chromium-cli` or equivalent is installed either.
+
+**Do not attempt:**
+- Installing or invoking Playwright, Puppeteer, or any browser-driven
+  testing/automation tool
+- Adding Playwright (or similar) as a project dependency to work around
+  this — it doesn't solve the underlying platform issue and wasn't part
+  of the plan
+
+**Instead, for this project:**
+- Verify wizard/UI behavior via Vitest unit and component tests
+- Verify calculation and schema logic via `packages/calculation` and
+  `packages/schema` test suites
+- Flag anything that genuinely needs visual/interactive browser
+  verification back to the user for a manual check, rather than trying
+  to automate it
