@@ -60,8 +60,8 @@ export default function Wizard() {
       <div className="mx-auto w-full max-w-md p-8">
         <h1 className="text-xl font-medium">Step 3 of 5 — Safety &amp; restrictions</h1>
         <p className="mb-6 mt-1 text-sm text-neutral-500">
-          List any ingredients that must be excluded entirely, any that should be limited, and
-          whether the recipe needs to be gluten-free.
+          Check any allergies or hard restrictions, and note any foods that are allowed but should
+          be limited.
         </p>
         <Step3SafetyRestrictions
           initialValues={step3Output}
@@ -76,12 +76,13 @@ export default function Wizard() {
   }
 
   if (step === 4 && step3Output) {
+    // Wider than the other steps: this one lists the whole food catalog.
     return (
-      <div className="mx-auto w-full max-w-md p-8">
+      <div className="mx-auto w-full max-w-2xl p-8">
         <h1 className="text-xl font-medium">Step 4 of 5 — Food preferences &amp; practical constraints</h1>
         <p className="mb-6 mt-1 text-sm text-neutral-500">
-          Rate foods you prefer, tolerate, use sparingly, or want excluded, and set your budget,
-          blender, prep frequency, and ingredient cap.
+          Mark foods as preferred, okay to use, or not to be used, then set your blender and
+          ingredient cap.
         </p>
         <Step4FoodPreferences
           medicalRestrictions={step3Output.medicalRestrictions}

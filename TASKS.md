@@ -23,7 +23,12 @@ reason, and wait for confirmation before starting.
 - [x] Wizard Step 4 — Food preferences + practical constraints (wire `validateFoodRestrictions` against Step 3's medical restrictions)
 - [x] Wizard Step 5 — Generate & review (recipe engine call + confirmation checklist)
 - [x] API layer — validate/normalize wizard input server-side
-- [ ] Recipe engine — constrained AI recipe generation (server-side Claude API call)
+- [x] Structured food catalog (`packages/schema/foodCatalog.ts`) — 165 allergen-tagged foods in six
+      categories, replacing free-text entry on Steps 3 and 4
+- [x] Allergen-aware exclusion validator (`validateAllergenExclusions`) — catches a declared allergy
+      vs. a preferred food containing it under another name; enforced in the UI and re-checked server-side
+- [x] Recipe engine — constrained AI recipe generation (server-side Claude API call,
+      `claudeRecipeEngine.ts`, constrained to `FOOD_CATALOG` via `buildAllowedIngredientPool`)
 - [ ] AI-estimated nutrient display
 - [ ] Status pipeline (draft → nutrient-checked → volume-confirmed → IDDSI-tested)
 

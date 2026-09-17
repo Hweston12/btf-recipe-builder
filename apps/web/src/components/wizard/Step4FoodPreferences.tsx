@@ -2,30 +2,23 @@
 
 import { useMemo, useState } from "react";
 import {
+  FOOD_CATALOG,
+  allergenLabel,
+  allergensFromRestrictions,
+  findCatalogItem,
+  validateAllergenExclusions,
   validateFoodRestrictions,
   type FoodPreferences,
   type MedicalRestrictions,
   type PracticalConstraints,
 } from "@btf-recipe-builder/schema";
-
-const BUDGET_LEVEL_OPTIONS: { value: PracticalConstraints["budgetLevel"]; label: string }[] = [
-  { value: "low", label: "Low" },
-  { value: "moderate", label: "Moderate" },
-  { value: "high", label: "High" },
-];
+import { blurNumberInputOnWheel } from "@/lib/blurNumberInputOnWheel";
+import FoodCategorySection, { type CustomFood } from "./FoodCategorySection";
+import type { FoodChoice } from "./FoodChoiceControl";
 
 const BLENDER_TYPE_OPTIONS: { value: PracticalConstraints["blenderType"]; label: string }[] = [
   { value: "standard", label: "Standard" },
   { value: "high-powered", label: "High-powered" },
-];
-
-const PREPARATION_FREQUENCY_OPTIONS: {
-  value: PracticalConstraints["preparationFrequency"];
-  label: string;
-}[] = [
-  { value: "daily", label: "Daily" },
-  { value: "every-2-3-days", label: "Every 2-3 days" },
-  { value: "weekly", label: "Weekly" },
 ];
 
 export interface Step4Output {
@@ -40,81 +33,58 @@ interface Step4FoodPreferencesProps {
   medicalRestrictions: MedicalRestrictions;
 }
 
-function TagList({
-  legend,
-  helpText,
-  values,
-  onAdd,
-  onRemove,
-}: {
-  legend: string;
-  helpText: string;
-  values: string[];
-  onAdd: (value: string) => void;
-  onRemove: (index: number) => void;
-}) {
-  const [draft, setDraft] = useState("");
+const DETAIL_SEPARATOR = " — ";
 
-  function handleAdd() {
-    const trimmed = draft.trim();
-    if (trimmed === "") return;
-    if (values.some((v) => v.toLowerCase() === trimmed.toLowerCase())) {
-      setDraft("");
-      return;
+/**
+ * Rebuilds the per-food state from a previously submitted Step4Output, so
+ * going Back and returning restores every rating. Names that aren't in the
+ * catalog are restored as custom foods on the category they were added to if
+ * that's recoverable, and on the first category otherwise — a custom food's
+ * category carries no meaning downstream, only its name does.
+ */
+function hydrate(initialValues?: Step4Output | null): {
+  choices: Record<string, FoodChoice>;
+  customFoods: CustomFood[];
+  detail: string;
+} {
+  const choices: Record<string, FoodChoice> = {};
+  const customFoods: CustomFood[] = [];
+  let detail = "";
+
+  const byName = new Map<string, { id: string; requiresDetail?: boolean }>();
+  for (const category of FOOD_CATALOG) {
+    for (const item of category.items) {
+      byName.set(item.name.toLowerCase(), item);
     }
-    onAdd(trimmed);
-    setDraft("");
   }
 
-  return (
-    <fieldset className="space-y-3">
-      <legend className="text-sm font-medium">{legend}</legend>
-      <p className="text-sm text-neutral-500">{helpText}</p>
+  const lists: [FoodChoice, string[]][] = [
+    ["preferred", initialValues?.foodPreferences.preferred ?? []],
+    ["acceptable", initialValues?.foodPreferences.acceptable ?? []],
+    ["excluded", initialValues?.foodPreferences.excluded ?? []],
+  ];
 
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleAdd();
-            }
-          }}
-          className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          className="mt-1 rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700"
-        >
-          Add
-        </button>
-      </div>
+  for (const [choice, names] of lists) {
+    for (const name of names) {
+      // "Commercial enteral formula — Compleat" splits back into the catalog
+      // item plus its detail.
+      const [base, ...rest] = name.split(DETAIL_SEPARATOR);
+      const item = byName.get(base.trim().toLowerCase());
 
-      {values.length > 0 && (
-        <ul className="flex flex-wrap gap-2">
-          {values.map((value, index) => (
-            <li
-              key={`${value}-${index}`}
-              className="flex items-center gap-2 rounded border border-neutral-300 px-3 py-1 text-sm dark:border-neutral-700"
-            >
-              {value}
-              <button
-                type="button"
-                onClick={() => onRemove(index)}
-                aria-label={`Remove ${value}`}
-                className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
-              >
-                &times;
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </fieldset>
-  );
+      if (item) {
+        choices[item.id] = choice;
+        if (item.requiresDetail && rest.length > 0) detail = rest.join(DETAIL_SEPARATOR);
+        continue;
+      }
+
+      const id = `custom:${name.toLowerCase()}`;
+      if (choices[id]) continue;
+      choices[id] = choice;
+      customFoods.push({ id, categoryId: FOOD_CATALOG[0].id, name });
+    }
+  }
+
+  return { choices, customFoods, detail };
 }
 
 export default function Step4FoodPreferences({
@@ -123,38 +93,88 @@ export default function Step4FoodPreferences({
   initialValues,
   medicalRestrictions,
 }: Step4FoodPreferencesProps) {
-  const [preferred, setPreferred] = useState(initialValues?.foodPreferences.preferred ?? []);
-  const [acceptable, setAcceptable] = useState(initialValues?.foodPreferences.acceptable ?? []);
-  const [useSparingly, setUseSparingly] = useState(
-    initialValues?.foodPreferences.useSparingly ?? []
-  );
-  const [excluded, setExcluded] = useState(initialValues?.foodPreferences.excluded ?? []);
+  const [hydrated] = useState(() => hydrate(initialValues));
+  const [choices, setChoices] = useState<Record<string, FoodChoice>>(hydrated.choices);
+  const [customFoods, setCustomFoods] = useState<CustomFood[]>(hydrated.customFoods);
+  const [formulaDetail, setFormulaDetail] = useState(hydrated.detail);
+  const [noPreferenceCategories, setNoPreferenceCategories] = useState<Set<string>>(new Set());
+  // Accordion: only one category open at a time. Starts on the first so
+  // there's something to see on load; "" means everything is collapsed.
+  const [openCategoryId, setOpenCategoryId] = useState<string>(FOOD_CATALOG[0].id);
 
   const [maximumIngredients, setMaximumIngredients] = useState(
     initialValues ? String(initialValues.practicalConstraints.maximumIngredients) : ""
   );
-  const [budgetLevel, setBudgetLevel] = useState<PracticalConstraints["budgetLevel"] | "">(
-    initialValues?.practicalConstraints.budgetLevel ?? ""
-  );
   const [blenderType, setBlenderType] = useState<PracticalConstraints["blenderType"] | "">(
     initialValues?.practicalConstraints.blenderType ?? ""
   );
-  const [preparationFrequency, setPreparationFrequency] = useState<
-    PracticalConstraints["preparationFrequency"] | ""
-  >(initialValues?.practicalConstraints.preparationFrequency ?? "");
-  const [cuisinePreferences, setCuisinePreferences] = useState(
-    initialValues?.practicalConstraints.cuisinePreferences ?? []
-  );
+
+  /**
+   * Foods ruled out by a step 3 medical exclusion, as foodId → reason. These
+   * render locked rather than selectable, which is what keeps a taste
+   * preference from ever overriding a medical exclusion.
+   */
+  const blockedReasons = useMemo(() => {
+    const allergens = allergensFromRestrictions(medicalRestrictions);
+    if (allergens.length === 0) return {};
+
+    const declared = new Set(allergens);
+    const reasons: Record<string, string> = {};
+
+    for (const category of FOOD_CATALOG) {
+      for (const item of category.items) {
+        const conflicting = item.allergens.filter((allergen) => declared.has(allergen));
+        if (conflicting.length === 0) continue;
+        reasons[item.id] =
+          conflicting[0] === "gluten"
+            ? "excluded — gluten-free"
+            : `excluded — ${allergenLabel(conflicting[0]).toLowerCase()} allergy`;
+      }
+    }
+
+    return reasons;
+  }, [medicalRestrictions]);
+
+  const foodPreferences = useMemo((): FoodPreferences => {
+    const preferred: string[] = [];
+    const acceptable: string[] = [];
+    const excluded: string[] = [];
+    const buckets = { preferred, acceptable, excluded };
+
+    for (const [foodId, choice] of Object.entries(choices)) {
+      // A blocked food can't be rated, and a "no preference" category's
+      // ratings are held but not submitted.
+      if (blockedReasons[foodId]) continue;
+
+      const item = findCatalogItem(foodId);
+      if (item) {
+        const category = FOOD_CATALOG.find((c) => c.items.includes(item));
+        if (category && noPreferenceCategories.has(category.id)) continue;
+
+        const detail = formulaDetail.trim();
+        buckets[choice].push(
+          item.requiresDetail && detail !== ""
+            ? `${item.name}${DETAIL_SEPARATOR}${detail}`
+            : item.name
+        );
+        continue;
+      }
+
+      const custom = customFoods.find((food) => food.id === foodId);
+      if (!custom) continue;
+      if (noPreferenceCategories.has(custom.categoryId)) continue;
+      buckets[choice].push(custom.name);
+    }
+
+    return { preferred, acceptable, excluded };
+  }, [choices, customFoods, blockedReasons, formulaDetail, noPreferenceCategories]);
 
   const contradictions = useMemo(
-    () =>
-      validateFoodRestrictions(medicalRestrictions, {
-        preferred,
-        acceptable,
-        useSparingly,
-        excluded,
-      }),
-    [medicalRestrictions, preferred, acceptable, useSparingly, excluded]
+    () => [
+      ...validateFoodRestrictions(medicalRestrictions, foodPreferences),
+      ...validateAllergenExclusions(medicalRestrictions, foodPreferences),
+    ],
+    [medicalRestrictions, foodPreferences]
   );
 
   const parsedMaximumIngredients = Number(maximumIngredients);
@@ -162,22 +182,53 @@ export default function Step4FoodPreferences({
     maximumIngredients.trim() !== "" &&
     Number.isInteger(parsedMaximumIngredients) &&
     parsedMaximumIngredients > 0 &&
-    budgetLevel !== "" &&
-    blenderType !== "" &&
-    preparationFrequency !== "";
+    blenderType !== "";
 
   const canContinue = practicalConstraintsValid && contradictions.length === 0;
+
+  function handleChoiceChange(foodId: string, choice: FoodChoice | undefined) {
+    setChoices((prev) => {
+      const next = { ...prev };
+      if (choice === undefined) {
+        delete next[foodId];
+      } else {
+        next[foodId] = choice;
+      }
+      return next;
+    });
+  }
+
+  function handleAddCustomFood(categoryId: string, name: string) {
+    const id = `custom:${name.toLowerCase()}`;
+    setCustomFoods((prev) =>
+      prev.some((food) => food.id === id) ? prev : [...prev, { id, categoryId, name }]
+    );
+  }
+
+  function handleRemoveCustomFood(id: string) {
+    setCustomFoods((prev) => prev.filter((food) => food.id !== id));
+    handleChoiceChange(id, undefined);
+  }
+
+  function handleNoPreferenceChange(categoryId: string, value: boolean) {
+    setNoPreferenceCategories((prev) => {
+      const next = new Set(prev);
+      if (value) {
+        next.add(categoryId);
+      } else {
+        next.delete(categoryId);
+      }
+      return next;
+    });
+  }
 
   function handleContinue() {
     if (!canContinue) return;
     onComplete({
-      foodPreferences: { preferred, acceptable, useSparingly, excluded },
+      foodPreferences,
       practicalConstraints: {
         maximumIngredients: parsedMaximumIngredients,
-        budgetLevel,
         blenderType,
-        preparationFrequency,
-        cuisinePreferences,
       },
     });
   }
@@ -190,37 +241,33 @@ export default function Step4FoodPreferences({
         handleContinue();
       }}
     >
-      <TagList
-        legend="Preferred foods"
-        helpText="Foods the patient especially likes or tolerates well."
-        values={preferred}
-        onAdd={(value) => setPreferred((prev) => [...prev, value])}
-        onRemove={(index) => setPreferred((prev) => prev.filter((_, i) => i !== index))}
-      />
+      <div className="space-y-3">
+        <p className="text-sm text-neutral-500">
+          Rate any foods you have an opinion about — ♥ preferred, ○ okay to use, or × do not use.
+          Anything left unrated is treated as &ldquo;no opinion&rdquo;, which the recipe engine may
+          still use to meet a nutrition target. Foods ruled out by the allergies you entered on the
+          previous step are locked and can&rsquo;t be chosen here.
+        </p>
 
-      <TagList
-        legend="Acceptable foods"
-        helpText="Foods that are fine to include but not a particular favorite."
-        values={acceptable}
-        onAdd={(value) => setAcceptable((prev) => [...prev, value])}
-        onRemove={(index) => setAcceptable((prev) => prev.filter((_, i) => i !== index))}
-      />
-
-      <TagList
-        legend="Use sparingly"
-        helpText="Foods that are fine occasionally but shouldn't be a regular ingredient."
-        values={useSparingly}
-        onAdd={(value) => setUseSparingly((prev) => [...prev, value])}
-        onRemove={(index) => setUseSparingly((prev) => prev.filter((_, i) => i !== index))}
-      />
-
-      <TagList
-        legend="Excluded foods"
-        helpText="Foods to leave out by preference, beyond the medical restrictions from the previous step."
-        values={excluded}
-        onAdd={(value) => setExcluded((prev) => [...prev, value])}
-        onRemove={(index) => setExcluded((prev) => prev.filter((_, i) => i !== index))}
-      />
+        {FOOD_CATALOG.map((category) => (
+          <FoodCategorySection
+            key={category.id}
+            category={category}
+            choices={choices}
+            onChoiceChange={handleChoiceChange}
+            blockedReasons={blockedReasons}
+            customFoods={customFoods.filter((food) => food.categoryId === category.id)}
+            onAddCustomFood={(name) => handleAddCustomFood(category.id, name)}
+            onRemoveCustomFood={handleRemoveCustomFood}
+            noPreference={noPreferenceCategories.has(category.id)}
+            onNoPreferenceChange={(value) => handleNoPreferenceChange(category.id, value)}
+            detail={formulaDetail}
+            onDetailChange={setFormulaDetail}
+            open={openCategoryId === category.id}
+            onOpenChange={(isOpen) => setOpenCategoryId(isOpen ? category.id : "")}
+          />
+        ))}
+      </div>
 
       {contradictions.length > 0 && (
         <div className="space-y-1 rounded border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
@@ -244,26 +291,9 @@ export default function Step4FoodPreferences({
             step="1"
             value={maximumIngredients}
             onChange={(e) => setMaximumIngredients(e.target.value)}
+            onWheel={blurNumberInputOnWheel}
             className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
-        </label>
-
-        <label className="block text-sm">
-          Budget
-          <select
-            value={budgetLevel}
-            onChange={(e) =>
-              setBudgetLevel(e.target.value as PracticalConstraints["budgetLevel"] | "")
-            }
-            className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          >
-            <option value="">Select&hellip;</option>
-            {BUDGET_LEVEL_OPTIONS.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
         </label>
 
         <label className="block text-sm">
@@ -283,35 +313,7 @@ export default function Step4FoodPreferences({
             ))}
           </select>
         </label>
-
-        <label className="block text-sm">
-          Preparation frequency
-          <select
-            value={preparationFrequency}
-            onChange={(e) =>
-              setPreparationFrequency(
-                e.target.value as PracticalConstraints["preparationFrequency"] | ""
-              )
-            }
-            className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          >
-            <option value="">Select&hellip;</option>
-            {PREPARATION_FREQUENCY_OPTIONS.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
       </fieldset>
-
-      <TagList
-        legend="Cuisine preferences"
-        helpText="Cuisines or flavor profiles the recipe should lean toward, if any."
-        values={cuisinePreferences}
-        onAdd={(value) => setCuisinePreferences((prev) => [...prev, value])}
-        onRemove={(index) => setCuisinePreferences((prev) => prev.filter((_, i) => i !== index))}
-      />
 
       <div className="flex gap-3">
         <button type="button" onClick={onBack} className="text-sm underline">

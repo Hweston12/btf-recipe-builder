@@ -21,13 +21,10 @@ const intake: PatientIntake = {
     doNotExceedUl: true,
   },
   medicalRestrictions: { absoluteExclusions: [], glutenFree: false, foodsToLimit: [] },
-  foodPreferences: { preferred: [], acceptable: [], useSparingly: [], excluded: [] },
+  foodPreferences: { preferred: [], acceptable: [], excluded: [] },
   practicalConstraints: {
     maximumIngredients: 8,
-    budgetLevel: "moderate",
     blenderType: "standard",
-    preparationFrequency: "daily",
-    cuisinePreferences: [],
   },
   feeding: { route: "gastrostomy", tubeSizeFr: 18, delivery: "bolus", historyOfClogging: false },
 };

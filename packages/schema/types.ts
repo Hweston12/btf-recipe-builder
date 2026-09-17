@@ -50,19 +50,24 @@ export interface MedicalRestrictions {
   foodsToLimit: string[];
 }
 
+/**
+ * The three states the wizard offers per food (architecture-plan.md §4).
+ * A food left unrated appears in none of these arrays, which is distinct from
+ * being `excluded`: unrated means "no opinion", excluded means "do not use".
+ *
+ * `excluded` here is a *taste* exclusion. A medical one lives in
+ * MedicalRestrictions.absoluteExclusions and must never be overridden — see
+ * validateFoodRestrictions and validateAllergenExclusions.
+ */
 export interface FoodPreferences {
   preferred: string[];
   acceptable: string[];
-  useSparingly: string[];
   excluded: string[];
 }
 
 export interface PracticalConstraints {
   maximumIngredients: number;
-  budgetLevel: string;
   blenderType: string;
-  preparationFrequency: string;
-  cuisinePreferences: string[];
 }
 
 export interface Feeding {

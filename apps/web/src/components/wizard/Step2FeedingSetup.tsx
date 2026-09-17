@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { IddsiLevel } from "@btf-recipe-builder/calculation";
 import type { Feeding, MacroTargets } from "@btf-recipe-builder/schema";
+import { blurNumberInputOnWheel } from "@/lib/blurNumberInputOnWheel";
 
 const IDDSI_TARGET_OPTIONS: { level: IddsiLevel; name: string }[] = [
   { level: 0, name: "Thin" },
@@ -193,6 +194,7 @@ export default function Step2FeedingSetup({
             step="any"
             value={tubeSizeFr}
             onChange={(e) => setTubeSizeFr(e.target.value)}
+            onWheel={blurNumberInputOnWheel}
             className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>
@@ -232,6 +234,7 @@ export default function Step2FeedingSetup({
             step="1"
             value={feedsPerDay}
             onChange={(e) => setFeedsPerDay(e.target.value)}
+            onWheel={blurNumberInputOnWheel}
             className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>
@@ -273,6 +276,7 @@ export default function Step2FeedingSetup({
               step="any"
               value={carbohydratePercentMin}
               onChange={(e) => setCarbohydratePercentMin(e.target.value)}
+              onWheel={blurNumberInputOnWheel}
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </label>
@@ -285,6 +289,7 @@ export default function Step2FeedingSetup({
               step="any"
               value={carbohydratePercentMax}
               onChange={(e) => setCarbohydratePercentMax(e.target.value)}
+              onWheel={blurNumberInputOnWheel}
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </label>
@@ -298,6 +303,7 @@ export default function Step2FeedingSetup({
               step="any"
               value={fatPercentMin}
               onChange={(e) => setFatPercentMin(e.target.value)}
+              onWheel={blurNumberInputOnWheel}
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </label>
@@ -310,6 +316,7 @@ export default function Step2FeedingSetup({
               step="any"
               value={fatPercentMax}
               onChange={(e) => setFatPercentMax(e.target.value)}
+              onWheel={blurNumberInputOnWheel}
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </label>
@@ -323,6 +330,7 @@ export default function Step2FeedingSetup({
               step="any"
               value={proteinPercentMin}
               onChange={(e) => setProteinPercentMin(e.target.value)}
+              onWheel={blurNumberInputOnWheel}
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </label>
@@ -335,6 +343,7 @@ export default function Step2FeedingSetup({
               step="any"
               value={proteinPercentMax}
               onChange={(e) => setProteinPercentMax(e.target.value)}
+              onWheel={blurNumberInputOnWheel}
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </label>
@@ -357,6 +366,7 @@ export default function Step2FeedingSetup({
             step="any"
             value={micronutrientMinimumPercentDri}
             onChange={(e) => setMicronutrientMinimumPercentDri(e.target.value)}
+            onWheel={blurNumberInputOnWheel}
             className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>

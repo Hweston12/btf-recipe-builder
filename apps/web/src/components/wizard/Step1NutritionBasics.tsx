@@ -6,6 +6,7 @@ import {
   type PrescriptionResult,
 } from "@btf-recipe-builder/calculation";
 import type { Patient } from "@btf-recipe-builder/schema";
+import { blurNumberInputOnWheel } from "@/lib/blurNumberInputOnWheel";
 
 export interface Step1Output {
   patient: Patient;
@@ -112,6 +113,7 @@ export default function Step1NutritionBasics({
             step="any"
             value={ageYears}
             onChange={(e) => setAgeYears(e.target.value)}
+            onWheel={blurNumberInputOnWheel}
             className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>
@@ -124,6 +126,7 @@ export default function Step1NutritionBasics({
             step="any"
             value={weightKg}
             onChange={(e) => setWeightKg(e.target.value)}
+            onWheel={blurNumberInputOnWheel}
             className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>
@@ -155,6 +158,7 @@ export default function Step1NutritionBasics({
             step="any"
             value={caloriesKcal}
             onChange={(e) => setCaloriesKcal(e.target.value)}
+            onWheel={blurNumberInputOnWheel}
             className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>
@@ -167,6 +171,7 @@ export default function Step1NutritionBasics({
             step="any"
             value={finalVolumeMl}
             onChange={(e) => setFinalVolumeMl(e.target.value)}
+            onWheel={blurNumberInputOnWheel}
             className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>
@@ -179,6 +184,7 @@ export default function Step1NutritionBasics({
             step="any"
             value={densityKcalPerMl}
             onChange={(e) => setDensityKcalPerMl(e.target.value)}
+            onWheel={blurNumberInputOnWheel}
             className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </label>

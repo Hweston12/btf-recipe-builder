@@ -11,11 +11,13 @@ families, and caregivers build nutritionally complete, individualized blenderize
 of truth, not this file. `TASKS.md` tracks build progress against that plan's roadmap — check
 it for current status and check items off there as work lands, rather than restating status here.
 
-**Current state:** early-stage. `packages/calculation` is implemented and tested. `apps/web` is
-otherwise a `create-next-app` scaffold (Next.js 16 / React 19 / Tailwind 4) — its homepage
-currently does nothing but import `reconcilePrescription` from the workspace package and render
-the result as a workspace-wiring smoke test. Routing, wizard UI, API layer, and the
-recipe-generation engine described in the architecture plan do not exist yet.
+**Current state:** the `packages/calculation` and `packages/schema` packages are implemented and
+tested. `apps/web` (Next.js 16 / React 19 / Tailwind 4) has a working five-step wizard (nutrition
+basics → feeding setup → safety & restrictions → food preferences → generate & review), a
+server-side API layer that re-validates the assembled intake before calling the recipe engine, and
+a real Claude-backed recipe engine (`claudeRecipeEngine.ts`). Not yet built: the AI-estimated
+nutrient display beyond RecipeCard's inline annotations, and the draft → nutrient-checked →
+volume-confirmed → IDDSI-tested status pipeline.
 
 ## Commands
 
@@ -105,15 +107,20 @@ Behavioral details worth knowing before modifying this module:
 
 Small, pure, dependency-free, independently testable — same pattern as
 `packages/calculation`. Holds the TypeScript types for the wizard's output object
-(`docs/architecture-plan.md` §4) plus a validator for the exclusion/preference
-precedence rule above. Consumed by `apps/web` for the wizard UI and by the server-side
-`/api/generate-recipes` route (architecture plan §3).
+(`docs/architecture-plan.md` §4), the allergen-tagged food catalog, and the validators
+for the exclusion/preference precedence rules above. Consumed by `apps/web` for the wizard
+UI and by the server-side `/api/generate-recipes` route (architecture plan §3) — the catalog
+lives here rather than in `apps/web` precisely because the allergen rules are re-checked
+server-side.
 
 | File | Responsibility |
 |---|---|
 | `types.ts` | `PatientIntake` and its component interfaces — `Patient`, `Prescription`, `MedicalRestrictions`, `FoodPreferences`, `PracticalConstraints`, `Feeding` |
 | `validation.ts` | `validateFoodRestrictions` — flags an `absolute_exclusions` / `food_preferences` contradiction (rule 1); doesn't check `foods_to_limit`, since overlap there is expected (rule 2) |
 | `validatePatientIntake.ts` | `validatePatientIntake` — runtime structural/range validator for an untrusted `PatientIntake` payload (e.g. an API route body); collects every failing field rather than stopping at the first, never throws |
+| `foodCatalog.ts` | `FOOD_CATALOG` — 165 allergen-tagged foods in six categories, plus `ALLERGEN_OPTIONS` (the nine major allergens + gluten) and lookup helpers. The closed vocabulary Steps 3/4 offer and the recipe engine optimizes over |
+| `validateAllergenExclusions.ts` | `validateAllergenExclusions` — flags a `preferred`/`acceptable` food whose catalog allergens collide with a declared allergy ("Peanuts" excluded vs. "Peanut butter" preferred). Complements `validateFoodRestrictions`, which only matches by name |
+| `allowedIngredients.ts` | `buildAllowedIngredientPool` — the actual constrained ingredient pool for one patient (`FOOD_CATALOG` minus anything allergen- or taste-excluded, bucketed into preferred/acceptable/neutral). What the recipe engine sends to the AI as "you may only choose from these" |
 | `index.ts` | Barrel export |
 
 ### `apps/web`
@@ -126,27 +133,42 @@ current step — one route for the whole wizard rather than one route per step,
 since nothing needs to be deep-linked or persisted yet. Each step is its own
 component under `src/components/wizard/` (e.g. `Step1NutritionBasics.tsx`),
 taking an `onComplete` callback and handling its own form state/validation.
+Step 3 collects absolute exclusions as a checklist of `ALLERGEN_OPTIONS` (gluten-free
+maps to `MedicalRestrictions.glutenFree`, the other nine into `absoluteExclusions` by
+label). Step 4 renders
+`FOOD_CATALOG` as collapsible categories of tri-state controls — preferred / okay to
+use / do not use — via `FoodCategorySection.tsx` and `FoodChoiceControl.tsx`, locking
+any food an allergy rules out. `TagList.tsx` is the shared free-text chip input.
 The homepage (`src/app/page.tsx`) is a minimal landing page linking to `/wizard`.
 `src/lib/assemblePatientIntake.ts` combines the four wizard steps' outputs into one
-`PatientIntake`. `src/lib/recipeEngine/` holds the `CandidateRecipe` shape and a
-`mockRecipeEngine.ts` that stands in for the real (unbuilt) server-side recipe engine; only
-this file's body should need to change once a real API-backed engine lands. A server-side
-route, `src/app/api/generate-recipes/route.ts`, re-validates the assembled `PatientIntake`
-(via `validatePatientIntake`/`validateFoodRestrictions` and `reconcilePrescription`) before
-calling the recipe engine — the "API layer" from architecture-plan.md §3. `Step5GenerateReview.tsx`
-calls this route through `src/lib/recipeEngine/fetchCandidateRecipes.ts` rather than importing
-`mockRecipeEngine.ts` directly.
+`PatientIntake`. `src/lib/recipeEngine/` holds the `CandidateRecipe` shape and
+`claudeRecipeEngine.ts`, the real recipe engine — a server-side call to Claude
+(`claude-opus-5`, via `@anthropic-ai/sdk`'s `messages.parse` + `zodOutputFormat` for
+structured output) constrained to `FOOD_CATALOG` via `buildAllowedIngredientPool`, so the
+model can only select ingredients the family hasn't excluded. IDDSI is never part of its
+output schema — `iddsiValidated` is always hardcoded `false` server-side in
+`toCandidateRecipe`, never taken from the model. Requires `ANTHROPIC_API_KEY` in
+`apps/web/.env.local` (see `.env.example`); reads it only via the SDK's own credential
+resolution, never directly. A server-side route, `src/app/api/generate-recipes/route.ts`,
+re-validates the assembled `PatientIntake` (via `validatePatientIntake`/`validateFoodRestrictions`/
+`validateAllergenExclusions` and `reconcilePrescription`) before calling the recipe engine —
+the "API layer" from architecture-plan.md §3. `Step5GenerateReview.tsx` calls this route
+through `src/lib/recipeEngine/fetchCandidateRecipes.ts` rather than importing
+`claudeRecipeEngine.ts` directly.
 
 ### Restriction/preference precedence (resolved, binding on the recipe engine)
 
 `docs/architecture-plan.md` §4 defines `medical_restrictions` with two arrays —
-`absolute_exclusions` and `foods_to_limit` — and two precedence rules that any code touching
-`food_preferences` or the recipe engine must honor:
+`absolute_exclusions` and `foods_to_limit` — and the precedence rules below, which any code
+touching `food_preferences` or the recipe engine must honor:
 
 1. **Absolute exclusion always wins**, even if the same ingredient is separately marked `preferred`
    in `food_preferences`. That contradiction must be flagged to the user, never silently resolved.
 2. **A medical limit caps a taste preference, it doesn't lose to it** — `foods_to_limit` constrains
    quantity regardless of how strongly the food is preferred.
+3. **An allergy excludes every food *containing* that allergen**, not only one whose name matches —
+   enforced by the allergen tags on each `FOOD_CATALOG` item, both in the wizard (Step 4 renders
+   those foods as locked, non-selectable rows) and server-side via `validateAllergenExclusions`.
 
 ## Keeping this file current
 

@@ -27,15 +27,11 @@ function validIntake(): PatientIntake {
     foodPreferences: {
       preferred: ["chicken"],
       acceptable: ["rice"],
-      useSparingly: ["cheese"],
       excluded: ["fish"],
     },
     practicalConstraints: {
       maximumIngredients: 6,
-      budgetLevel: "moderate",
       blenderType: "high-powered",
-      preparationFrequency: "daily",
-      cuisinePreferences: ["mediterranean"],
     },
     feeding: {
       route: "G-tube",

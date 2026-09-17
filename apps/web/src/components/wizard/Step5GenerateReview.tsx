@@ -9,6 +9,7 @@ import {
   type IddsiLevel,
 } from "@btf-recipe-builder/calculation";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
+import { blurNumberInputOnWheel } from "@/lib/blurNumberInputOnWheel";
 import { fetchCandidateRecipes } from "@/lib/recipeEngine/fetchCandidateRecipes";
 import type { CandidateRecipe } from "@/lib/recipeEngine/types";
 import RecipeCard from "./RecipeCard";
@@ -63,15 +64,9 @@ export default function Step5GenerateReview({
   const [measuredFinalVolumeMl, setMeasuredFinalVolumeMl] = useState(
     initialValues ? String(initialValues.volumeConfirmation.measuredFinalVolumeMl) : ""
   );
-  const [volumeConfirmed, setVolumeConfirmed] = useState(
-    initialValues !== undefined && initialValues !== null
-  );
 
   const [syringeRemainingVolumeMl, setSyringeRemainingVolumeMl] = useState(
     initialValues ? String(initialValues.iddsiConfirmation.remainingVolumeMl) : ""
-  );
-  const [iddsiTestConfirmed, setIddsiTestConfirmed] = useState(
-    initialValues !== undefined && initialValues !== null
   );
 
   const [physicianReminderAcknowledged, setPhysicianReminderAcknowledged] = useState(
@@ -131,18 +126,25 @@ export default function Step5GenerateReview({
     return { interpreted, comparison };
   }, [syringeRemainingVolumeMl, intake.prescription.iddsiTarget]);
 
+  // A valid measurement is the confirmation: calculateVerifiedDensity/interpretIddsiFlowTest
+  // only produce a result from a real number the family typed in, which they can only have
+  // if they actually blended-and-measured or ran the syringe test — no separate checkbox
+  // needed on top of that. Still gated on presence, not on being within tolerance: an
+  // out-of-tolerance or off-target result is shown as a warning note, not blocked, matching
+  // how the checkbox this replaces was only ever disabled by a missing measurement.
+  const volumeConfirmed = verifiedDensityResult !== null;
+  const iddsiTestConfirmed = iddsiComputed !== null;
+
   const allConfirmed =
     reviewedNutrition && volumeConfirmed && iddsiTestConfirmed && physicianReminderAcknowledged;
 
-  function handleFinish() {
-    if (
-      !allConfirmed ||
-      !selectedCandidate ||
-      !verifiedDensityResult ||
-      !iddsiComputed ||
-      !measuredFinalVolumeMl ||
-      !syringeRemainingVolumeMl
-    ) {
+  // No separate Finish button: the last checkbox (physician/dietitian acknowledgment) is
+  // itself the explicit confirming action, the same way a valid measurement stands in for
+  // the volume/IDDSI checkboxes above. Reporting completion is still gated on every
+  // confirmation, not a silent auto-advance — it only fires once the family has actually
+  // ticked that last box.
+  useEffect(() => {
+    if (!allConfirmed || !selectedCandidate || !verifiedDensityResult || !iddsiComputed) {
       return;
     }
     onComplete({
@@ -161,7 +163,10 @@ export default function Step5GenerateReview({
       },
       physicianReminderAcknowledged,
     });
-  }
+    // Re-fires if a confirmed value changes after the fact (e.g. re-measuring), which is
+    // correct — onComplete should always reflect the latest confirmed state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allConfirmed, selectedCandidate, verifiedDensityResult, iddsiComputed]);
 
   if (error) {
     return (
@@ -265,6 +270,7 @@ export default function Step5GenerateReview({
                 step="any"
                 value={currentBlendedVolumeMl}
                 onChange={(e) => setCurrentBlendedVolumeMl(e.target.value)}
+                onWheel={blurNumberInputOnWheel}
                 className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
               />
             </label>
@@ -279,6 +285,7 @@ export default function Step5GenerateReview({
                 step="any"
                 value={measuredFinalVolumeMl}
                 onChange={(e) => setMeasuredFinalVolumeMl(e.target.value)}
+                onWheel={blurNumberInputOnWheel}
                 className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
               />
             </label>
@@ -293,16 +300,6 @@ export default function Step5GenerateReview({
                 {verifiedDensityResult.note}
               </p>
             )}
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={volumeConfirmed}
-                disabled={!verifiedDensityResult}
-                onChange={(e) => setVolumeConfirmed(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-neutral-300 dark:border-neutral-700"
-              />
-              <span>I&apos;ve blended, measured, and confirmed the final volume above.</span>
-            </label>
           </div>
 
           <div className="space-y-3">
@@ -320,6 +317,7 @@ export default function Step5GenerateReview({
                 step="any"
                 value={syringeRemainingVolumeMl}
                 onChange={(e) => setSyringeRemainingVolumeMl(e.target.value)}
+                onWheel={blurNumberInputOnWheel}
                 className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
               />
             </label>
@@ -337,16 +335,6 @@ export default function Step5GenerateReview({
                 </p>
               </div>
             )}
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={iddsiTestConfirmed}
-                disabled={!iddsiComputed}
-                onChange={(e) => setIddsiTestConfirmed(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-neutral-300 dark:border-neutral-700"
-              />
-              <span>I&apos;ve performed the physical IDDSI flow test above.</span>
-            </label>
           </div>
 
           <label className="flex items-start gap-2 text-sm">
@@ -361,16 +349,6 @@ export default function Step5GenerateReview({
               starting or changing a tube feeding regimen.
             </span>
           </label>
-
-          {allConfirmed && (
-            <button
-              type="button"
-              onClick={handleFinish}
-              className="rounded bg-neutral-900 px-4 py-2 text-sm text-white dark:bg-neutral-100 dark:text-neutral-900"
-            >
-              Finish
-            </button>
-          )}
         </section>
       )}
 

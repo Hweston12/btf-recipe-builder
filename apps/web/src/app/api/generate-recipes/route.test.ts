@@ -1,7 +1,39 @@
 // @vitest-environment node
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
+import type { CandidateRecipe } from "@/lib/recipeEngine/types";
+
+// The route's own job is validation + orchestration — the AI call itself is
+// covered by claudeRecipeEngine.test.ts. Mocking it here means these tests
+// never hit the network and never depend on a real API key being set.
+vi.mock("@/lib/recipeEngine/claudeRecipeEngine", () => ({
+  generateCandidateRecipes: vi.fn(),
+}));
+
+import { generateCandidateRecipes } from "@/lib/recipeEngine/claudeRecipeEngine";
 import { POST } from "./route";
+
+const mockedGenerateCandidateRecipes = vi.mocked(generateCandidateRecipes);
+
+function fixtureCandidate(id: string): CandidateRecipe {
+  return {
+    id,
+    label: "Test Recipe",
+    source: "ai_generated",
+    ingredients: [{ name: "Banana", grams: 100 }],
+    aiEstimatedValues: {
+      caloriesKcal: 400,
+      proteinGrams: 10,
+      carbohydrateGrams: 50,
+      fatGrams: 10,
+      fiberGrams: 5,
+      fluidMl: 1500,
+      densityKcalPerMl: 0.267,
+    },
+    estimateDisclaimer: "Estimated — not a substitute for a verified nutrient analysis.",
+    iddsiValidated: false,
+  };
+}
 
 function validIntake(): PatientIntake {
   return {
@@ -28,15 +60,11 @@ function validIntake(): PatientIntake {
     foodPreferences: {
       preferred: ["chicken"],
       acceptable: ["rice"],
-      useSparingly: ["cheese"],
       excluded: ["fish"],
     },
     practicalConstraints: {
       maximumIngredients: 6,
-      budgetLevel: "moderate",
       blenderType: "high-powered",
-      preparationFrequency: "daily",
-      cuisinePreferences: ["mediterranean"],
     },
     feeding: {
       route: "G-tube",
@@ -56,12 +84,32 @@ function requestFor(body: unknown): Request {
 }
 
 describe("POST /api/generate-recipes", () => {
+  beforeEach(() => {
+    mockedGenerateCandidateRecipes.mockReset();
+  });
+
   it("returns 200 with an array of candidate recipes for a valid intake", async () => {
+    mockedGenerateCandidateRecipes.mockResolvedValue([
+      fixtureCandidate("candidate-1"),
+      fixtureCandidate("candidate-2"),
+      fixtureCandidate("candidate-3"),
+    ]);
+
     const response = await POST(requestFor(validIntake()));
     expect(response.status).toBe(200);
     const candidates = await response.json();
     expect(Array.isArray(candidates)).toBe(true);
-    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates.length).toBe(3);
+    expect(mockedGenerateCandidateRecipes).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 500 when the recipe engine throws", async () => {
+    mockedGenerateCandidateRecipes.mockRejectedValue(new Error("AI service unavailable"));
+
+    const response = await POST(requestFor(validIntake()));
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.error).toBeTruthy();
   });
 
   it("returns 400 for malformed JSON", async () => {

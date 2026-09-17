@@ -191,7 +191,7 @@ function checkFoodPreferences(value: unknown, errors: IntakeValidationIssue[]) {
     push(errors, "foodPreferences", "foodPreferences is required and must be an object.");
     return;
   }
-  for (const key of ["preferred", "acceptable", "useSparingly", "excluded"] as const) {
+  for (const key of ["preferred", "acceptable", "excluded"] as const) {
     if (!isStringArray(preferences[key])) {
       push(errors, `foodPreferences.${key}`, `${key} must be an array of strings.`);
     }
@@ -215,16 +215,11 @@ function checkPracticalConstraints(value: unknown, errors: IntakeValidationIssue
       "maximumIngredients must be a positive integer."
     );
   }
-  for (const key of ["budgetLevel", "blenderType", "preparationFrequency"] as const) {
-    if (!isNonEmptyString(constraints[key])) {
-      push(errors, `practicalConstraints.${key}`, `${key} must be a non-empty string.`);
-    }
-  }
-  if (!isStringArray(constraints.cuisinePreferences)) {
+  if (!isNonEmptyString(constraints.blenderType)) {
     push(
       errors,
-      "practicalConstraints.cuisinePreferences",
-      "cuisinePreferences must be an array of strings."
+      "practicalConstraints.blenderType",
+      "blenderType must be a non-empty string."
     );
   }
 }

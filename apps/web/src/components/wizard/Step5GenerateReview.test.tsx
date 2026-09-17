@@ -2,7 +2,30 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Step5GenerateReview from "./Step5GenerateReview";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
-import { generateCandidateRecipes } from "@/lib/recipeEngine/mockRecipeEngine";
+import type { CandidateRecipe } from "@/lib/recipeEngine/types";
+
+function fixtureCandidates(): CandidateRecipe[] {
+  return ["Option 1", "Option 2", "Option 3"].map((label, index) => ({
+    id: `candidate-${index + 1}`,
+    label,
+    source: "ai_generated",
+    ingredients: [
+      { name: "Oats", grams: 150 },
+      { name: "Banana", grams: 100 },
+    ],
+    aiEstimatedValues: {
+      caloriesKcal: 1800,
+      proteinGrams: 60,
+      carbohydrateGrams: 220,
+      fatGrams: 60,
+      fiberGrams: 20,
+      fluidMl: 1200,
+      densityKcalPerMl: 1.5,
+    },
+    estimateDisclaimer: "Estimated — not a substitute for a verified nutrient analysis.",
+    iddsiValidated: false,
+  }));
+}
 
 const intake: PatientIntake = {
   patient: { ageYears: 45, sexForDri: "female", weightKg: 60 },
@@ -21,13 +44,10 @@ const intake: PatientIntake = {
     doNotExceedUl: true,
   },
   medicalRestrictions: { absoluteExclusions: [], glutenFree: false, foodsToLimit: [] },
-  foodPreferences: { preferred: ["oats", "banana"], acceptable: [], useSparingly: [], excluded: [] },
+  foodPreferences: { preferred: ["oats", "banana"], acceptable: [], excluded: [] },
   practicalConstraints: {
     maximumIngredients: 8,
-    budgetLevel: "moderate",
     blenderType: "standard",
-    preparationFrequency: "daily",
-    cuisinePreferences: [],
   },
   feeding: { route: "gastrostomy", tubeSizeFr: 18, delivery: "bolus", historyOfClogging: false },
 };
@@ -41,10 +61,7 @@ describe("Step5GenerateReview", () => {
   beforeEach(() => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(async () => {
-        const candidates = await generateCandidateRecipes(intake);
-        return new Response(JSON.stringify(candidates), { status: 200 });
-      })
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(fixtureCandidates()), { status: 200 }))
     );
   });
 
@@ -72,68 +89,125 @@ describe("Step5GenerateReview", () => {
     ).toBeInTheDocument();
   });
 
-  it("disables the volume and IDDSI checkboxes until a valid measurement is entered", async () => {
+  it("has no separate volume/IDDSI confirmation checkboxes — a valid measurement is the confirmation", async () => {
     render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
     await screen.findByText("Option 1");
     await selectFirstCandidate();
 
-    const volumeCheckbox = screen.getByRole("checkbox", {
-      name: /blended, measured, and confirmed the final volume/i,
-    });
-    const iddsiCheckbox = screen.getByRole("checkbox", {
-      name: /performed the physical iddsi flow test/i,
-    });
-    expect(volumeCheckbox).toBeDisabled();
-    expect(iddsiCheckbox).toBeDisabled();
+    expect(
+      screen.queryByRole("checkbox", { name: /blended, measured, and confirmed the final volume/i })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("checkbox", { name: /performed the physical iddsi flow test/i })
+    ).toBeNull();
+    // The measurement fields and their computed feedback are still there.
+    expect(screen.getByLabelText(/final volume after topping up with water/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/volume remaining after 10 seconds/i)).toBeInTheDocument();
+  });
 
+  it("has no Finish button — the checklist ends with the physician checkbox", async () => {
+    render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
+    await screen.findByText("Option 1");
+    await selectFirstCandidate();
+
+    expect(screen.queryByRole("button", { name: /^finish$/i })).toBeNull();
+  });
+
+  it("does not call onComplete until both measurements are valid, even with both boxes checked", async () => {
+    const onComplete = vi.fn();
+    render(<Step5GenerateReview intake={intake} onComplete={onComplete} onBack={vi.fn()} />);
+    await screen.findByText("Option 1");
+    await selectFirstCandidate();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /reviewed the estimated nutrition/i }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: /understand i should check with the patient's physician/i,
+      })
+    );
+    expect(onComplete).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/final volume after topping up with water/i), {
+      target: { value: "1200" },
+    });
+    expect(onComplete).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/volume remaining after 10 seconds/i), {
+      target: { value: "0" },
+    });
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
+  });
+
+  it("still calls onComplete when the volume measurement is out of tolerance, but shows a warning", async () => {
+    const onComplete = vi.fn();
+    render(<Step5GenerateReview intake={intake} onComplete={onComplete} onBack={vi.fn()} />);
+    await screen.findByText("Option 1");
+    await selectFirstCandidate();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /reviewed the estimated nutrition/i }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: /understand i should check with the patient's physician/i,
+      })
+    );
+    // A tiny final volume relative to the recipe's calories pushes density far
+    // outside the 10% tolerance — this must warn, not block completion.
+    fireEvent.change(screen.getByLabelText(/final volume after topping up with water/i), {
+      target: { value: "100" },
+    });
+    fireEvent.change(screen.getByLabelText(/volume remaining after 10 seconds/i), {
+      target: { value: "0" },
+    });
+
+    expect(await screen.findByText(/outside the 10% tolerance/i)).toBeInTheDocument();
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
+  });
+
+  it("checking the last box (physician acknowledgment) is what triggers onComplete", async () => {
+    const onComplete = vi.fn();
+    render(<Step5GenerateReview intake={intake} onComplete={onComplete} onBack={vi.fn()} />);
+    await screen.findByText("Option 1");
+    await selectFirstCandidate();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /reviewed the estimated nutrition/i }));
     fireEvent.change(screen.getByLabelText(/final volume after topping up with water/i), {
       target: { value: "1200" },
     });
     fireEvent.change(screen.getByLabelText(/volume remaining after 10 seconds/i), {
       target: { value: "0" },
     });
+    expect(onComplete).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(volumeCheckbox).not.toBeDisabled());
-    expect(iddsiCheckbox).not.toBeDisabled();
-  });
-
-  it("never auto-checks the volume checkbox, even when the measurement is out of tolerance", async () => {
-    render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
-    await screen.findByText("Option 1");
-    await selectFirstCandidate();
-
-    // A tiny final volume relative to the recipe's calories pushes density far
-    // outside the 10% tolerance — this must warn, not silently resolve or check the box.
-    fireEvent.change(screen.getByLabelText(/final volume after topping up with water/i), {
-      target: { value: "100" },
-    });
-
-    const volumeCheckbox = screen.getByRole("checkbox", {
-      name: /blended, measured, and confirmed the final volume/i,
-    });
-
-    await waitFor(() => expect(volumeCheckbox).not.toBeDisabled());
-    expect(volumeCheckbox).not.toBeChecked();
-    expect(screen.getByText(/outside the 10% tolerance/i)).toBeInTheDocument();
-  });
-
-  it("does not call onComplete until all four confirmations are checked", async () => {
-    const onComplete = vi.fn();
-    render(<Step5GenerateReview intake={intake} onComplete={onComplete} onBack={vi.fn()} />);
-    await screen.findByText("Option 1");
-    await selectFirstCandidate();
-
-    expect(screen.queryByRole("button", { name: /^finish$/i })).toBeNull();
-
-    fireEvent.click(
-      screen.getByRole("checkbox", { name: /reviewed the estimated nutrition/i })
-    );
     fireEvent.click(
       screen.getByRole("checkbox", {
         name: /understand i should check with the patient's physician/i,
       })
     );
 
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(onComplete.mock.calls[0][0]).toMatchObject({
+      selectedCandidateId: "candidate-1",
+      reviewedNutrition: true,
+      physicianReminderAcknowledged: true,
+      volumeConfirmation: { measuredFinalVolumeMl: 1200 },
+      iddsiConfirmation: { remainingVolumeMl: 0 },
+    });
+  });
+
+  it("shows the recipe card once everything is confirmed", async () => {
+    render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
+    await screen.findByText("Option 1");
+    await selectFirstCandidate();
+
+    expect(screen.queryByRole("heading", { name: /recipe card/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /reviewed the estimated nutrition/i }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: /understand i should check with the patient's physician/i,
+      })
+    );
     fireEvent.change(screen.getByLabelText(/final volume after topping up with water/i), {
       target: { value: "1200" },
     });
@@ -141,30 +215,21 @@ describe("Step5GenerateReview", () => {
       target: { value: "0" },
     });
 
-    const volumeCheckbox = screen.getByRole("checkbox", {
-      name: /blended, measured, and confirmed the final volume/i,
-    });
-    const iddsiCheckbox = screen.getByRole("checkbox", {
-      name: /performed the physical iddsi flow test/i,
-    });
-    await waitFor(() => expect(volumeCheckbox).not.toBeDisabled());
+    expect(await screen.findByRole("heading", { name: /recipe card/i })).toBeInTheDocument();
+  });
 
-    // Still not complete — volume/IDDSI checkboxes require an explicit click too.
-    expect(screen.queryByRole("button", { name: /^finish$/i })).toBeNull();
-    expect(onComplete).not.toHaveBeenCalled();
+  it("blurs a number field on scroll instead of letting the wheel change its value", async () => {
+    render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
+    await screen.findByText("Option 1");
+    await selectFirstCandidate();
 
-    fireEvent.click(volumeCheckbox);
-    fireEvent.click(iddsiCheckbox);
+    const volumeInput = screen.getByLabelText(/final volume after topping up with water/i);
+    volumeInput.focus();
+    expect(volumeInput).toHaveFocus();
 
-    const finishButton = await screen.findByRole("button", { name: /^finish$/i });
-    fireEvent.click(finishButton);
+    fireEvent.wheel(volumeInput);
 
-    expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(onComplete.mock.calls[0][0]).toMatchObject({
-      selectedCandidateId: "candidate-1",
-      reviewedNutrition: true,
-      physicianReminderAcknowledged: true,
-    });
+    expect(volumeInput).not.toHaveFocus();
   });
 
   it("surfaces a fetch failure as an error message instead of an endless loading state", async () => {

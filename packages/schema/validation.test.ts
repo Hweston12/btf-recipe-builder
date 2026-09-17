@@ -9,10 +9,9 @@ function restrictions(absoluteExclusions: string[], foodsToLimit: string[] = [])
 function preferences(
   preferred: string[] = [],
   acceptable: string[] = [],
-  useSparingly: string[] = [],
   excluded: string[] = []
 ): FoodPreferences {
-  return { preferred, acceptable, useSparingly, excluded };
+  return { preferred, acceptable, excluded };
 }
 
 describe("validateFoodRestrictions", () => {

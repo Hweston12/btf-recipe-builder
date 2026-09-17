@@ -42,15 +42,11 @@ const step4: Step4Output = {
   foodPreferences: {
     preferred: ["oats", "banana"],
     acceptable: ["chicken"],
-    useSparingly: ["honey"],
     excluded: ["broccoli"],
   },
   practicalConstraints: {
     maximumIngredients: 8,
-    budgetLevel: "moderate",
     blenderType: "standard",
-    preparationFrequency: "daily",
-    cuisinePreferences: [],
   },
 };
 
