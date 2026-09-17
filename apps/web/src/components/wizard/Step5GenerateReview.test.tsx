@@ -76,6 +76,46 @@ describe("Step5GenerateReview", () => {
     expect(await screen.findByText("Option 1")).toBeInTheDocument();
   });
 
+  it("shows a placeholder and no full nutrition detail before anything is selected", async () => {
+    render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
+    await screen.findByText("Option 1");
+
+    expect(
+      screen.getByText(/select a recipe on the left to review it/i)
+    ).toBeInTheDocument();
+    // The compact picker shows calories inline, not a full per-nutrient breakdown.
+    expect(screen.queryByText("Protein")).toBeNull();
+    expect(screen.queryByText("Carbohydrate")).toBeNull();
+  });
+
+  it("shows full nutrition detail only for the selected candidate, not all three", async () => {
+    render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
+    await screen.findByText("Option 1");
+    await selectFirstCandidate();
+
+    // Exactly one full detail panel renders, not three.
+    expect(screen.getAllByText("Protein")).toHaveLength(1);
+    expect(screen.getAllByText("Carbohydrate")).toHaveLength(1);
+    expect(
+      screen.queryByText(/select a recipe on the left to review it/i)
+    ).toBeNull();
+  });
+
+  it("switches the full detail panel when a different candidate is selected", async () => {
+    render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
+    await screen.findByText("Option 1");
+    await selectFirstCandidate();
+
+    const remainingSelectButtons = screen.getAllByRole("button", {
+      name: /^select this recipe$/i,
+    });
+    fireEvent.click(remainingSelectButtons[0]);
+
+    // Still exactly one full detail panel — it moved, not duplicated.
+    expect(screen.getAllByText("Protein")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /^selected$/i })).toBeInTheDocument();
+  });
+
   it("hides the confirmation checklist until a candidate is selected", async () => {
     render(<Step5GenerateReview intake={intake} onComplete={vi.fn()} onBack={vi.fn()} />);
     await screen.findByText("Option 1");

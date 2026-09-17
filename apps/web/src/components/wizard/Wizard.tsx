@@ -99,8 +99,9 @@ export default function Wizard() {
 
   if (step === 5 && step1Output && step2Output && step3Output && step4Output) {
     const intake = assemblePatientIntake(step1Output, step2Output, step3Output, step4Output);
+    // Wider than the other steps: the two-column candidate picker / detail layout needs the room.
     return (
-      <div className="mx-auto w-full max-w-md p-8 print:max-w-none print:p-0">
+      <div className="mx-auto w-full max-w-4xl p-8 print:max-w-none print:p-0">
         <h1 className="text-xl font-medium print:hidden">Step 5 of 5 &mdash; Generate &amp; review</h1>
         <p className="mb-6 mt-1 text-sm text-neutral-500 print:hidden">
           Review candidate recipes, pick one, and confirm the safety checklist before use.

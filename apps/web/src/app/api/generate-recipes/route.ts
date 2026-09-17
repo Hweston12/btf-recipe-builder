@@ -6,6 +6,16 @@ import {
 } from "@btf-recipe-builder/schema";
 import { generateCandidateRecipes } from "@/lib/recipeEngine/claudeRecipeEngine";
 
+// A real generateCandidateRecipes call has measured 10-80s depending on effort (see
+// claudeRecipeEngine.ts's default-effort comment) — production runs at "medium" (~43s
+// measured). 120s gives headroom over that single sample for normal run-to-run variance
+// in thinking-token count plus the Anthropic SDK's automatic retries on a transient
+// failure (429/5xx/connection error, up to 2 by default), without approaching Vercel
+// Hobby's actual 300s ceiling — this just fails fast on a tighter bound than the
+// platform default rather than waiting the full 5 minutes if a call ever truly hangs.
+// Bump this if effort is ever raised toward "xhigh"/"max".
+export const maxDuration = 120;
+
 /**
  * Server-side entry point for recipe generation (architecture-plan.md §3,
  * "API layer" row). Re-validates the wizard's intake here rather than

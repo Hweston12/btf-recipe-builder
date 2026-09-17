@@ -12,6 +12,8 @@ import type { PatientIntake } from "@btf-recipe-builder/schema";
 import { blurNumberInputOnWheel } from "@/lib/blurNumberInputOnWheel";
 import { fetchCandidateRecipes } from "@/lib/recipeEngine/fetchCandidateRecipes";
 import type { CandidateRecipe } from "@/lib/recipeEngine/types";
+import CandidateDetail from "./CandidateDetail";
+import CandidateSummary from "./CandidateSummary";
 import RecipeCard from "./RecipeCard";
 
 export interface Step5Output {
@@ -182,189 +184,153 @@ export default function Step5GenerateReview({
 
   return (
     <div className="space-y-8">
-      <section className="space-y-4">
-        <h3 className="text-sm font-medium">Candidate recipes</h3>
-        <div className="space-y-4">
-          {candidates.map((candidate) => (
-            <div
-              key={candidate.id}
-              className={`space-y-2 rounded border p-4 text-sm ${
-                candidate.id === selectedCandidateId
-                  ? "border-neutral-900 dark:border-neutral-100"
-                  : "border-neutral-300 dark:border-neutral-700"
-              }`}
-            >
-              <p className="font-medium">{candidate.label}</p>
-              <ul className="space-y-1">
-                {candidate.ingredients.map((ingredient) => (
-                  <li key={ingredient.name} className="flex justify-between">
-                    <span>{ingredient.name}</span>
-                    <span>{ingredient.grams} g</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="space-y-1 rounded border border-neutral-200 p-3 dark:border-neutral-800">
-                <p className="text-neutral-500">{candidate.estimateDisclaimer}</p>
-                <p className="flex justify-between">
-                  <span>Calories</span>
-                  <span>{candidate.aiEstimatedValues.caloriesKcal} kcal</span>
-                </p>
-                <p className="flex justify-between">
-                  <span>Protein</span>
-                  <span>{candidate.aiEstimatedValues.proteinGrams} g</span>
-                </p>
-                <p className="flex justify-between">
-                  <span>Carbohydrate</span>
-                  <span>{candidate.aiEstimatedValues.carbohydrateGrams} g</span>
-                </p>
-                <p className="flex justify-between">
-                  <span>Fat</span>
-                  <span>{candidate.aiEstimatedValues.fatGrams} g</span>
-                </p>
-                <p className="flex justify-between">
-                  <span>Fiber</span>
-                  <span>{candidate.aiEstimatedValues.fiberGrams} g</span>
-                </p>
-                <p className="flex justify-between">
-                  <span>Fluid</span>
-                  <span>{candidate.aiEstimatedValues.fluidMl} mL</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedCandidateId(candidate.id)}
-                className="rounded bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900"
-                disabled={candidate.id === selectedCandidateId}
-              >
-                {candidate.id === selectedCandidateId ? "Selected" : "Select this recipe"}
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {selectedCandidate && (
-        <section className="space-y-6 rounded border border-neutral-300 p-4 dark:border-neutral-700">
-          <h3 className="text-sm font-medium">Confirmation checklist</h3>
-
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={reviewedNutrition}
-              onChange={(e) => setReviewedNutrition(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-neutral-300 dark:border-neutral-700"
-            />
-            <span>
-              I&apos;ve reviewed the estimated nutrition above for {selectedCandidate.label} and it
-              looks right to me.
-            </span>
-          </label>
-
-          <div className="space-y-3">
-            <p className="text-sm font-medium">Blend, measure, and confirm volume</p>
-            <label className="block text-sm">
-              First blended volume (mL), before topping up with water
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={currentBlendedVolumeMl}
-                onChange={(e) => setCurrentBlendedVolumeMl(e.target.value)}
-                onWheel={blurNumberInputOnWheel}
-                className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+      <div className="grid grid-cols-1 items-start gap-6 print:block lg:grid-cols-[280px_1fr]">
+        <section className="space-y-4">
+          <h3 className="text-sm font-medium">Candidate recipes</h3>
+          <div className="space-y-4">
+            {candidates.map((candidate) => (
+              <CandidateSummary
+                key={candidate.id}
+                candidate={candidate}
+                selected={candidate.id === selectedCandidateId}
+                onSelect={() => setSelectedCandidateId(candidate.id)}
               />
-            </label>
-            {waterTopUpResult && (
-              <p className="text-sm text-neutral-500">{waterTopUpResult.note}</p>
-            )}
-            <label className="block text-sm">
-              Final volume after topping up with water (mL)
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={measuredFinalVolumeMl}
-                onChange={(e) => setMeasuredFinalVolumeMl(e.target.value)}
-                onWheel={blurNumberInputOnWheel}
-                className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-              />
-            </label>
-            {verifiedDensityResult && (
-              <p
-                className={
-                  verifiedDensityResult.withinTolerance
-                    ? "text-sm text-neutral-500"
-                    : "text-sm text-amber-600 dark:text-amber-400"
-                }
-              >
-                {verifiedDensityResult.note}
-              </p>
-            )}
+            ))}
           </div>
-
-          <div className="space-y-3">
-            <p className="text-sm font-medium">Perform the physical IDDSI flow test</p>
-            <p className="text-sm text-neutral-500">
-              Fill a 10 mL syringe (no plunger) with the blended recipe, let it flow under gravity
-              for 10 seconds, and measure what remains. Do not estimate this from the ingredients.
-            </p>
-            <label className="block text-sm">
-              Volume remaining after 10 seconds (mL)
-              <input
-                type="number"
-                min="0"
-                max="10"
-                step="any"
-                value={syringeRemainingVolumeMl}
-                onChange={(e) => setSyringeRemainingVolumeMl(e.target.value)}
-                onWheel={blurNumberInputOnWheel}
-                className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-              />
-            </label>
-            {iddsiComputed && (
-              <div className="space-y-1 text-sm">
-                <p className="text-neutral-500">{iddsiComputed.interpreted.note}</p>
-                <p
-                  className={
-                    iddsiComputed.comparison.matches
-                      ? "text-neutral-500"
-                      : "text-amber-600 dark:text-amber-400"
-                  }
-                >
-                  {iddsiComputed.comparison.note}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={physicianReminderAcknowledged}
-              onChange={(e) => setPhysicianReminderAcknowledged(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-neutral-300 dark:border-neutral-700"
-            />
-            <span>
-              I understand I should check with the patient&apos;s physician or dietitian before
-              starting or changing a tube feeding regimen.
-            </span>
-          </label>
         </section>
-      )}
 
-      {allConfirmed && selectedCandidate && verifiedDensityResult && iddsiComputed && (
-        <RecipeCard
-          intake={intake}
-          candidate={selectedCandidate}
-          verifiedDensity={verifiedDensityResult}
-          iddsi={{
-            levelName: iddsiComputed.interpreted.levelName,
-            confirmedBySyringeTest: iddsiComputed.interpreted.confirmedBySyringeTest,
-            matchesTarget: iddsiComputed.comparison.matches,
-            note: iddsiComputed.comparison.note,
-          }}
-        />
-      )}
+        {selectedCandidate ? (
+          <div className="space-y-6">
+            <CandidateDetail candidate={selectedCandidate} />
+
+            <section className="space-y-6 rounded border border-neutral-300 p-4 dark:border-neutral-700">
+              <h3 className="text-sm font-medium">Confirmation checklist</h3>
+
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={reviewedNutrition}
+                  onChange={(e) => setReviewedNutrition(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-neutral-300 dark:border-neutral-700"
+                />
+                <span>
+                  I&apos;ve reviewed the estimated nutrition above for {selectedCandidate.label} and
+                  it looks right to me.
+                </span>
+              </label>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Blend, measure, and confirm volume</p>
+                <label className="block text-sm">
+                  First blended volume (mL), before topping up with water
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={currentBlendedVolumeMl}
+                    onChange={(e) => setCurrentBlendedVolumeMl(e.target.value)}
+                    onWheel={blurNumberInputOnWheel}
+                    className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                  />
+                </label>
+                {waterTopUpResult && (
+                  <p className="text-sm text-neutral-500">{waterTopUpResult.note}</p>
+                )}
+                <label className="block text-sm">
+                  Final volume after topping up with water (mL)
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={measuredFinalVolumeMl}
+                    onChange={(e) => setMeasuredFinalVolumeMl(e.target.value)}
+                    onWheel={blurNumberInputOnWheel}
+                    className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                  />
+                </label>
+                {verifiedDensityResult && (
+                  <p
+                    className={
+                      verifiedDensityResult.withinTolerance
+                        ? "text-sm text-neutral-500"
+                        : "text-sm text-amber-600 dark:text-amber-400"
+                    }
+                  >
+                    {verifiedDensityResult.note}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Perform the physical IDDSI flow test</p>
+                <p className="text-sm text-neutral-500">
+                  Fill a 10 mL syringe (no plunger) with the blended recipe, let it flow under
+                  gravity for 10 seconds, and measure what remains. Do not estimate this from the
+                  ingredients.
+                </p>
+                <label className="block text-sm">
+                  Volume remaining after 10 seconds (mL)
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="any"
+                    value={syringeRemainingVolumeMl}
+                    onChange={(e) => setSyringeRemainingVolumeMl(e.target.value)}
+                    onWheel={blurNumberInputOnWheel}
+                    className="mt-1 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                  />
+                </label>
+                {iddsiComputed && (
+                  <div className="space-y-1 text-sm">
+                    <p className="text-neutral-500">{iddsiComputed.interpreted.note}</p>
+                    <p
+                      className={
+                        iddsiComputed.comparison.matches
+                          ? "text-neutral-500"
+                          : "text-amber-600 dark:text-amber-400"
+                      }
+                    >
+                      {iddsiComputed.comparison.note}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={physicianReminderAcknowledged}
+                  onChange={(e) => setPhysicianReminderAcknowledged(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-neutral-300 dark:border-neutral-700"
+                />
+                <span>
+                  I understand I should check with the patient&apos;s physician or dietitian before
+                  starting or changing a tube feeding regimen.
+                </span>
+              </label>
+            </section>
+
+            {allConfirmed && verifiedDensityResult && iddsiComputed && (
+              <RecipeCard
+                intake={intake}
+                candidate={selectedCandidate}
+                verifiedDensity={verifiedDensityResult}
+                iddsi={{
+                  levelName: iddsiComputed.interpreted.levelName,
+                  confirmedBySyringeTest: iddsiComputed.interpreted.confirmedBySyringeTest,
+                  matchesTarget: iddsiComputed.comparison.matches,
+                  note: iddsiComputed.comparison.note,
+                }}
+              />
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-500">
+            Select a recipe on the left to review it and confirm it&apos;s ready to use.
+          </p>
+        )}
+      </div>
 
       <button type="button" onClick={onBack} className="text-sm underline">
         Back
