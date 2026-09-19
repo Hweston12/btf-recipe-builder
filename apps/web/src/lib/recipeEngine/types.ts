@@ -1,3 +1,5 @@
+import type { MicronutrientAnalysisResult, MicronutrientEstimates } from "@btf-recipe-builder/calculation";
+
 export interface CandidateIngredient {
   name: string;
   grams: number;
@@ -27,6 +29,20 @@ export interface CandidateRecipe {
    * one or touching any code that reads it (architecture-plan.md §6).
    */
   aiEstimatedValues: NutrientValues;
+  /**
+   * AI-estimated content of all 28 DRI-tracked vitamins/minerals — same
+   * estimated-only caveat and future-`verifiedMicronutrients` naming
+   * precedent as aiEstimatedValues above.
+   */
+  aiEstimatedMicronutrients: MicronutrientEstimates;
+  /**
+   * The deterministic %DRI/UL comparison of aiEstimatedMicronutrients against
+   * the patient's age/sex targets. Computed server-side in the API route
+   * (evaluateMicronutrientIntake), not by the AI — flag-only, never used to
+   * filter candidates: every generated recipe ships with its analysis
+   * attached, and the user/clinician decides what to do with it.
+   */
+  microNutrientAnalysis: MicronutrientAnalysisResult;
   /** Plain-language disclaimer to render next to every number in aiEstimatedValues. */
   estimateDisclaimer: string;
   /**

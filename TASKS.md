@@ -30,6 +30,11 @@ reason, and wait for confirmation before starting.
 - [x] Recipe engine — constrained AI recipe generation (server-side Claude API call,
       `claudeRecipeEngine.ts`, constrained to `FOOD_CATALOG` via `buildAllowedIngredientPool`)
 - [ ] AI-estimated nutrient display
+- [x] AI-estimated micronutrient (28 vitamins/minerals) DRI%/UL report — `evaluateMicronutrientIntake`
+      (`packages/calculation/micronutrients.ts`) checks a candidate's AI-estimated content of all
+      28 NIH-tracked vitamins/minerals against age/sex DRI targets and the user's %DRI goal and UL
+      toggle from Step 2; surfaced via `MicronutrientReport` in Step 5's candidate detail and the
+      printed recipe card. Flag-only — never filters candidates.
 - [ ] Status pipeline (draft → nutrient-checked → volume-confirmed → IDDSI-tested)
 
 ## Phase 2

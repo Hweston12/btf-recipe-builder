@@ -1,6 +1,7 @@
 import type { VerifiedDensityResult } from "@btf-recipe-builder/calculation";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
 import type { CandidateRecipe } from "@/lib/recipeEngine/types";
+import MicronutrientReport from "./MicronutrientReport";
 
 export interface RecipeCardIddsiSummary {
   levelName: string;
@@ -69,6 +70,11 @@ export default function RecipeCard({ intake, candidate, verifiedDensity, iddsi }
           <p className="text-neutral-500">{candidate.informationalNote}</p>
         )}
       </section>
+
+      <MicronutrientReport
+        analysis={candidate.microNutrientAnalysis}
+        estimateDisclaimer={candidate.estimateDisclaimer}
+      />
 
       <section className="space-y-2 text-sm">
         <h3 className="text-sm font-medium">Prep instructions</h3>

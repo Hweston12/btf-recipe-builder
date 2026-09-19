@@ -1,7 +1,12 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
+import { evaluateMicronutrientIntake, MICRONUTRIENT_IDS } from "@btf-recipe-builder/calculation";
 import type { CandidateRecipe } from "@/lib/recipeEngine/types";
+
+const aiEstimatedMicronutrients = Object.fromEntries(
+  MICRONUTRIENT_IDS.map((id) => [id, 0])
+) as CandidateRecipe["aiEstimatedMicronutrients"];
 
 // The route's own job is validation + orchestration — the AI call itself is
 // covered by claudeRecipeEngine.test.ts. Mocking it here means these tests
@@ -30,6 +35,14 @@ function fixtureCandidate(id: string): CandidateRecipe {
       fluidMl: 1500,
       densityKcalPerMl: 0.267,
     },
+    aiEstimatedMicronutrients,
+    microNutrientAnalysis: evaluateMicronutrientIntake({
+      estimates: aiEstimatedMicronutrients,
+      ageYears: 45,
+      sexForDri: "female",
+      goalPercentDri: 100,
+      doNotExceedUl: true,
+    }),
     estimateDisclaimer: "Estimated — not a substitute for a verified nutrient analysis.",
     iddsiValidated: false,
   };

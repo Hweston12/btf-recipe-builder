@@ -1,9 +1,21 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
+import { evaluateMicronutrientIntake, MICRONUTRIENT_IDS } from "@btf-recipe-builder/calculation";
 import type { CandidateRecipe } from "./types";
 import { fetchCandidateRecipes } from "./fetchCandidateRecipes";
 
 const intake = {} as PatientIntake;
+
+const aiEstimatedMicronutrients = Object.fromEntries(
+  MICRONUTRIENT_IDS.map((id) => [id, 0])
+) as CandidateRecipe["aiEstimatedMicronutrients"];
+const microNutrientAnalysis = evaluateMicronutrientIntake({
+  estimates: aiEstimatedMicronutrients,
+  ageYears: 30,
+  sexForDri: "female",
+  goalPercentDri: 100,
+  doNotExceedUl: true,
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -26,6 +38,8 @@ describe("fetchCandidateRecipes", () => {
           fluidMl: 1500,
           densityKcalPerMl: 0.33,
         },
+        aiEstimatedMicronutrients,
+        microNutrientAnalysis,
         estimateDisclaimer: "Estimated.",
         iddsiValidated: false,
       },

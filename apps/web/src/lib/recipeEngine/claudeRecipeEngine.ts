@@ -8,6 +8,14 @@ import {
   type FoodCatalogItem,
   type PatientIntake,
 } from "@btf-recipe-builder/schema";
+import {
+  evaluateMicronutrientIntake,
+  MICRONUTRIENT_IDS,
+  MICRONUTRIENT_LABELS,
+  MICRONUTRIENT_UNITS,
+  type MicronutrientEstimates,
+  type MicronutrientId,
+} from "@btf-recipe-builder/calculation";
 import type { CandidateIngredient, CandidateRecipe, NutrientValues } from "./types";
 
 const MODEL = "claude-opus-5";
@@ -47,6 +55,15 @@ const AiIngredientSchema = (allowedIds: [string, ...string[]]) =>
     grams: z.number().positive(),
   });
 
+/** Built from MICRONUTRIENT_IDS rather than hand-typed, so this schema can never drift from
+ * the canonical 28-nutrient list in packages/calculation. */
+const AiMicronutrientsSchema = z.object(
+  Object.fromEntries(MICRONUTRIENT_IDS.map((id) => [id, z.number().nonnegative()])) as Record<
+    MicronutrientId,
+    z.ZodNumber
+  >
+);
+
 const AiRecipeSchema = (allowedIds: [string, ...string[]]) =>
   z.object({
     label: z.string().min(1).max(60),
@@ -58,6 +75,7 @@ const AiRecipeSchema = (allowedIds: [string, ...string[]]) =>
       fatGrams: z.number().nonnegative(),
       fiberGrams: z.number().nonnegative(),
     }),
+    aiEstimatedMicronutrients: AiMicronutrientsSchema,
     informationalNote: z.string().max(280).optional(),
   });
 
@@ -105,11 +123,16 @@ export function buildPrompt(
   const poolLines = (label: string, items: FoodCatalogItem[]) =>
     items.length > 0 ? `${label}:\n${items.map((i) => `- ${formatItem(i)}`).join("\n")}` : null;
 
+  const micronutrientList = MICRONUTRIENT_IDS.map(
+    (id) => `${MICRONUTRIENT_LABELS[id]} (${MICRONUTRIENT_UNITS[id]})`
+  ).join(", ");
+
   const userSections = [
     `Patient: ${patient.ageYears} years old, ${patient.sexForDri}, ${patient.weightKg} kg.`,
     `Prescription target: ${prescription.caloriesKcal} kcal total, delivered in ${prescription.finalVolumeMl} mL final volume (target density ${prescription.targetDensityKcalPerMl} kcal/mL), ${prescription.feedsPerDay} feeds/day.`,
     `Macro targets (percent of total calories): carbohydrate ${prescription.macroTargets.carbohydratePercent[0]}-${prescription.macroTargets.carbohydratePercent[1]}%, fat ${prescription.macroTargets.fatPercent[0]}-${prescription.macroTargets.fatPercent[1]}%, protein ${prescription.macroTargets.proteinPercent[0]}-${prescription.macroTargets.proteinPercent[1]}%.`,
     `Micronutrient minimum: ${prescription.micronutrientMinimumPercentDri}% of DRI.`,
+    `In aiEstimatedMicronutrients, estimate this recipe's total content of all 28 of the following vitamins and minerals, each in the exact unit given — do not omit any, and do not substitute a different unit: ${micronutrientList}.`,
     `Practical constraints: maximum ${constraints.maximumIngredients} ingredients per recipe, ${constraints.blenderType} blender available.`,
     restrictions.foodsToLimit.length > 0
       ? `Foods to use only in limited quantity if used: ${restrictions.foodsToLimit.join(", ")}.`
@@ -154,12 +177,26 @@ export function toCandidateRecipe(
     densityKcalPerMl: fluidMl > 0 ? Math.round((caloriesKcal / fluidMl) * 1000) / 1000 : 0,
   };
 
+  const aiEstimatedMicronutrients: MicronutrientEstimates = Object.fromEntries(
+    MICRONUTRIENT_IDS.map((id) => [id, round1(aiRecipe.aiEstimatedMicronutrients[id])])
+  ) as MicronutrientEstimates;
+
+  const microNutrientAnalysis = evaluateMicronutrientIntake({
+    estimates: aiEstimatedMicronutrients,
+    ageYears: intake.patient.ageYears,
+    sexForDri: intake.patient.sexForDri,
+    goalPercentDri: intake.prescription.micronutrientMinimumPercentDri,
+    doNotExceedUl: intake.prescription.doNotExceedUl,
+  });
+
   return {
     id: `candidate-${index + 1}`,
     label: aiRecipe.label,
     source: "ai_generated",
     ingredients,
     aiEstimatedValues,
+    aiEstimatedMicronutrients,
+    microNutrientAnalysis,
     estimateDisclaimer: ESTIMATE_DISCLAIMER,
     iddsiValidated: false,
     informationalNote: aiRecipe.informationalNote,

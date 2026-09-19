@@ -1,8 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { evaluateMicronutrientIntake, MICRONUTRIENT_IDS } from "@btf-recipe-builder/calculation";
 import Step5GenerateReview from "./Step5GenerateReview";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
 import type { CandidateRecipe } from "@/lib/recipeEngine/types";
+
+const aiEstimatedMicronutrients = Object.fromEntries(
+  MICRONUTRIENT_IDS.map((id) => [id, 0])
+) as CandidateRecipe["aiEstimatedMicronutrients"];
 
 function fixtureCandidates(): CandidateRecipe[] {
   return ["Option 1", "Option 2", "Option 3"].map((label, index) => ({
@@ -22,6 +27,14 @@ function fixtureCandidates(): CandidateRecipe[] {
       fluidMl: 1200,
       densityKcalPerMl: 1.5,
     },
+    aiEstimatedMicronutrients,
+    microNutrientAnalysis: evaluateMicronutrientIntake({
+      estimates: aiEstimatedMicronutrients,
+      ageYears: 45,
+      sexForDri: "female",
+      goalPercentDri: 100,
+      doNotExceedUl: true,
+    }),
     estimateDisclaimer: "Estimated — not a substitute for a verified nutrient analysis.",
     iddsiValidated: false,
   }));

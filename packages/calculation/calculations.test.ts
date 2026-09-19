@@ -5,7 +5,17 @@ import {
   calculateVerifiedDensity,
   interpretIddsiFlowTest,
   compareToTargetIddsiLevel,
+  evaluateMicronutrientIntake,
+  resolveLifeStageGroup,
+  MICRONUTRIENT_IDS,
+  type MicronutrientEstimates,
 } from "./index";
+
+/** All 28 nutrients at 0 — tests override only the ones they care about, since
+ * evaluateMicronutrientIntake requires every id to be present. */
+function zeroEstimates(): MicronutrientEstimates {
+  return Object.fromEntries(MICRONUTRIENT_IDS.map((id) => [id, 0])) as MicronutrientEstimates;
+}
 
 describe("reconcilePrescription", () => {
   it("calculates final volume from calories + density", () => {
@@ -158,5 +168,144 @@ describe("compareToTargetIddsiLevel", () => {
 
   it("flags mismatch", () => {
     expect(compareToTargetIddsiLevel(3, 2).matches).toBe(false);
+  });
+});
+
+describe("resolveLifeStageGroup", () => {
+  it("buckets children into unisex bands", () => {
+    expect(resolveLifeStageGroup(2, "female")).toBe("children-1-3");
+    expect(resolveLifeStageGroup(6, "male")).toBe("children-4-8");
+  });
+
+  it("buckets adults by sex and age band", () => {
+    expect(resolveLifeStageGroup(25, "male")).toBe("male-19-30");
+    expect(resolveLifeStageGroup(25, "female")).toBe("female-19-30");
+    expect(resolveLifeStageGroup(60, "female")).toBe("female-51-70");
+    expect(resolveLifeStageGroup(80, "male")).toBe("male-71-plus");
+  });
+
+  it("throws for ages under 1 year", () => {
+    expect(() => resolveLifeStageGroup(0.5, "male")).toThrow(/per-kilogram/);
+  });
+
+  it("throws for non-positive ages", () => {
+    expect(() => resolveLifeStageGroup(0, "male")).toThrow();
+    expect(() => resolveLifeStageGroup(-1, "male")).toThrow();
+  });
+});
+
+describe("evaluateMicronutrientIntake", () => {
+  // Known table values for male-19-30 (packages/calculation/micronutrients.ts): vitamin C
+  // DRI 90 mg / UL 2000 mg; potassium DRI 3400 mg with no established UL.
+  it("flags a nutrient below the goal percent", () => {
+    const estimates = zeroEstimates();
+    estimates.vitaminCMg = 45; // 50% of the 90 mg DRI
+
+    const result = evaluateMicronutrientIntake({
+      estimates,
+      ageYears: 25,
+      sexForDri: "male",
+      goalPercentDri: 80,
+      doNotExceedUl: true,
+    });
+
+    const vitaminC = result.entries.find((e) => e.id === "vitaminCMg")!;
+    expect(vitaminC.percentOfDri).toBe(50);
+    expect(vitaminC.meetsGoal).toBe(false);
+    expect(result.allMeetGoal).toBe(false);
+  });
+
+  it("passes a nutrient that meets the goal percent", () => {
+    const estimates = zeroEstimates();
+    estimates.vitaminCMg = 90; // 100% of DRI
+
+    const result = evaluateMicronutrientIntake({
+      estimates,
+      ageYears: 25,
+      sexForDri: "male",
+      goalPercentDri: 80,
+      doNotExceedUl: true,
+    });
+
+    const vitaminC = result.entries.find((e) => e.id === "vitaminCMg")!;
+    expect(vitaminC.percentOfDri).toBe(100);
+    expect(vitaminC.meetsGoal).toBe(true);
+  });
+
+  it("flags a nutrient that exceeds its UL", () => {
+    const estimates = zeroEstimates();
+    estimates.vitaminCMg = 2500; // over the 2000 mg UL
+
+    const result = evaluateMicronutrientIntake({
+      estimates,
+      ageYears: 25,
+      sexForDri: "male",
+      goalPercentDri: 80,
+      doNotExceedUl: true,
+    });
+
+    const vitaminC = result.entries.find((e) => e.id === "vitaminCMg")!;
+    expect(vitaminC.exceedsUl).toBe(true);
+    expect(result.anyExceedsUl).toBe(true);
+  });
+
+  it("never flags a UL breach when doNotExceedUl is false", () => {
+    const estimates = zeroEstimates();
+    estimates.vitaminCMg = 2500;
+
+    const result = evaluateMicronutrientIntake({
+      estimates,
+      ageYears: 25,
+      sexForDri: "male",
+      goalPercentDri: 80,
+      doNotExceedUl: false,
+    });
+
+    expect(result.entries.find((e) => e.id === "vitaminCMg")!.exceedsUl).toBe(false);
+    expect(result.anyExceedsUl).toBe(false);
+  });
+
+  it("never flags a nutrient with no established UL, however high the estimate", () => {
+    const estimates = zeroEstimates();
+    estimates.potassiumMg = 50000; // absurdly high; potassium has no NIH-established UL
+
+    const result = evaluateMicronutrientIntake({
+      estimates,
+      ageYears: 25,
+      sexForDri: "male",
+      goalPercentDri: 80,
+      doNotExceedUl: true,
+    });
+
+    const potassium = result.entries.find((e) => e.id === "potassiumMg")!;
+    expect(potassium.ulTarget).toBeNull();
+    expect(potassium.exceedsUl).toBe(false);
+  });
+
+  it("throws on a negative estimate rather than silently clamping it", () => {
+    const estimates = zeroEstimates();
+    estimates.ironMg = -1;
+
+    expect(() =>
+      evaluateMicronutrientIntake({
+        estimates,
+        ageYears: 25,
+        sexForDri: "male",
+        goalPercentDri: 80,
+        doNotExceedUl: true,
+      })
+    ).toThrow();
+  });
+
+  it("throws on a negative goal percent", () => {
+    expect(() =>
+      evaluateMicronutrientIntake({
+        estimates: zeroEstimates(),
+        ageYears: 25,
+        sexForDri: "male",
+        goalPercentDri: -10,
+        doNotExceedUl: true,
+      })
+    ).toThrow();
   });
 });

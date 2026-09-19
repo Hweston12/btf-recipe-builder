@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
+import { MICRONUTRIENT_IDS, type MicronutrientEstimates } from "@btf-recipe-builder/calculation";
 import {
   buildPrompt,
   buildRecipeResponseSchema,
@@ -10,6 +11,10 @@ import {
   type RecipeGenerationClient,
 } from "./claudeRecipeEngine";
 import { buildAllowedIngredientPool, FOOD_CATALOG } from "@btf-recipe-builder/schema";
+
+function zeroMicronutrients(): MicronutrientEstimates {
+  return Object.fromEntries(MICRONUTRIENT_IDS.map((id) => [id, 0])) as MicronutrientEstimates;
+}
 
 function baseIntake(overrides: Partial<PatientIntake> = {}): PatientIntake {
   return {
@@ -47,6 +52,7 @@ function aiRecipe(overrides: Partial<AiRecipe> = {}): AiRecipe {
       fatGrams: 10,
       fiberGrams: 5,
     },
+    aiEstimatedMicronutrients: zeroMicronutrients(),
     ...overrides,
   };
 }
@@ -118,6 +124,17 @@ describe("buildPrompt", () => {
 
     expect(system.toLowerCase()).toContain("iddsi");
   });
+
+  it("asks for all 28 tracked vitamins/minerals by name and unit", () => {
+    const intake = baseIntake();
+    const pool = buildAllowedIngredientPool(intake.medicalRestrictions, intake.foodPreferences);
+    const { user } = buildPrompt(intake, pool);
+
+    expect(user).toContain("aiEstimatedMicronutrients");
+    expect(user).toContain("Vitamin C (mg)");
+    expect(user).toContain("Vitamin B12 (mcg)");
+    expect(user).toContain("Fluoride (mg)");
+  });
 });
 
 describe("toCandidateRecipe", () => {
@@ -177,6 +194,21 @@ describe("toCandidateRecipe", () => {
     const intake = baseIntake();
     const candidate = toCandidateRecipe(aiRecipe(), 0, intake);
     expect(candidate!.iddsiValidated).toBe(false);
+  });
+
+  it("maps aiEstimatedMicronutrients through and computes the DRI/UL analysis from the patient", () => {
+    // baseIntake() is a 10-year-old female -> life-stage group female-9-13,
+    // where vitamin C's DRI is 45 mg (packages/calculation/micronutrients.ts).
+    const intake = baseIntake();
+    const micronutrients = zeroMicronutrients();
+    micronutrients.vitaminCMg = 45;
+
+    const candidate = toCandidateRecipe(aiRecipe({ aiEstimatedMicronutrients: micronutrients }), 0, intake);
+
+    expect(candidate!.aiEstimatedMicronutrients.vitaminCMg).toBe(45);
+    const vitaminC = candidate!.microNutrientAnalysis.entries.find((e) => e.id === "vitaminCMg")!;
+    expect(vitaminC.percentOfDri).toBe(100);
+    expect(vitaminC.meetsGoal).toBe(true);
   });
 });
 

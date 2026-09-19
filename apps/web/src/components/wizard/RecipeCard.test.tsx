@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { evaluateMicronutrientIntake, MICRONUTRIENT_IDS } from "@btf-recipe-builder/calculation";
 import RecipeCard from "./RecipeCard";
 import type { PatientIntake } from "@btf-recipe-builder/schema";
 import type { CandidateRecipe } from "@/lib/recipeEngine/types";
@@ -29,6 +30,10 @@ const intake: PatientIntake = {
   feeding: { route: "gastrostomy", tubeSizeFr: 18, delivery: "bolus", historyOfClogging: false },
 };
 
+const aiEstimatedMicronutrients = Object.fromEntries(
+  MICRONUTRIENT_IDS.map((id) => [id, 0])
+) as CandidateRecipe["aiEstimatedMicronutrients"];
+
 const candidate: CandidateRecipe = {
   id: "candidate-1",
   label: "Option 1",
@@ -46,6 +51,14 @@ const candidate: CandidateRecipe = {
     fluidMl: 1200,
     densityKcalPerMl: 1.5,
   },
+  aiEstimatedMicronutrients,
+  microNutrientAnalysis: evaluateMicronutrientIntake({
+    estimates: aiEstimatedMicronutrients,
+    ageYears: intake.patient.ageYears,
+    sexForDri: intake.patient.sexForDri,
+    goalPercentDri: intake.prescription.micronutrientMinimumPercentDri,
+    doNotExceedUl: intake.prescription.doNotExceedUl,
+  }),
   estimateDisclaimer: "Estimated — not a substitute for a verified nutrient analysis.",
   iddsiValidated: false,
 };
@@ -71,7 +84,7 @@ describe("RecipeCard", () => {
       />
     );
 
-    expect(screen.getByText(candidate.estimateDisclaimer)).toBeInTheDocument();
+    expect(screen.getAllByText(candidate.estimateDisclaimer).length).toBe(2);
     expect(screen.getAllByText("(estimated)").length).toBe(7);
 
     expect(screen.getByText("oats")).toBeInTheDocument();

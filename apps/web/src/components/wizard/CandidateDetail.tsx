@@ -1,4 +1,5 @@
 import type { CandidateRecipe } from "@/lib/recipeEngine/types";
+import MicronutrientReport from "./MicronutrientReport";
 
 interface CandidateDetailProps {
   candidate: CandidateRecipe;
@@ -48,6 +49,10 @@ export default function CandidateDetail({ candidate }: CandidateDetailProps) {
           <span>{candidate.aiEstimatedValues.fluidMl} mL</span>
         </p>
       </div>
+      <MicronutrientReport
+        analysis={candidate.microNutrientAnalysis}
+        estimateDisclaimer={candidate.estimateDisclaimer}
+      />
     </section>
   );
 }

@@ -83,3 +83,107 @@ export interface IddsiFlowTestResult {
   confirmedBySyringeTest: boolean;
   note: string;
 }
+
+/**
+ * The 28 vitamins/minerals NIH's Dietary Reference Intakes cover — the full set required
+ * to check a sole-source (tube feeding) formula for nutritional adequacy, not just the
+ * handful shown on a typical food label. Keys are camelCase + unit suffix, matching the
+ * caloriesKcal-style convention used elsewhere in this package.
+ */
+export const MICRONUTRIENT_IDS = [
+  "vitaminCMg",
+  "thiaminMg",
+  "riboflavinMg",
+  "niacinMg",
+  "vitaminB6Mg",
+  "folateMcgDfe",
+  "vitaminB12Mcg",
+  "biotinMcg",
+  "pantothenicAcidMg",
+  "vitaminAMcgRae",
+  "vitaminDMcg",
+  "vitaminEMg",
+  "vitaminKMcg",
+  "calciumMg",
+  "phosphorusMg",
+  "magnesiumMg",
+  "sodiumMg",
+  "potassiumMg",
+  "chlorideMg",
+  "ironMg",
+  "zincMg",
+  "copperMcg",
+  "manganeseMg",
+  "iodineMcg",
+  "seleniumMcg",
+  "chromiumMcg",
+  "molybdenumMcg",
+  "fluorideMg",
+] as const;
+
+export type MicronutrientId = (typeof MICRONUTRIENT_IDS)[number];
+
+/** A recipe's estimated content of all 28 nutrients, in the units MICRONUTRIENT_UNITS defines. */
+export type MicronutrientEstimates = Record<MicronutrientId, number>;
+
+/**
+ * Age/sex life-stage bands used by NIH's DRI tables. Ages under 1 year use per-kilogram
+ * Adequate Intakes that don't fit this per-recipe percent-of-DRI model, so resolveLifeStageGroup
+ * deliberately throws rather than guessing a band for that range.
+ */
+export type LifeStageGroup =
+  | "children-1-3"
+  | "children-4-8"
+  | "male-9-13"
+  | "female-9-13"
+  | "male-14-18"
+  | "female-14-18"
+  | "male-19-30"
+  | "female-19-30"
+  | "male-31-50"
+  | "female-31-50"
+  | "male-51-70"
+  | "female-51-70"
+  | "male-71-plus"
+  | "female-71-plus";
+
+/** One nutrient's DRI (RDA/AI) and Tolerable Upper Intake Level. ul is null when NIH has not
+ * established one for that nutrient (e.g. potassium, several B vitamins) — in that case a
+ * recipe can never be flagged as exceeding it, no matter how high the estimate. */
+export interface NutrientTarget {
+  dri: number;
+  ul: number | null;
+}
+
+export interface MicronutrientAnalysisInput {
+  /** The recipe's AI-estimated content of all 28 nutrients. */
+  estimates: MicronutrientEstimates;
+  ageYears: number;
+  sexForDri: "male" | "female";
+  /** The user's chosen minimum, e.g. 80 (Prescription.micronutrientMinimumPercentDri). */
+  goalPercentDri: number;
+  /** Prescription.doNotExceedUl — when false, no nutrient is ever flagged as exceeding its UL. */
+  doNotExceedUl: boolean;
+}
+
+export interface MicronutrientAnalysisEntry {
+  id: MicronutrientId;
+  label: string;
+  unit: string;
+  estimatedAmount: number;
+  driTarget: number;
+  percentOfDri: number;
+  meetsGoal: boolean;
+  ulTarget: number | null;
+  exceedsUl: boolean;
+  /** Set only when there's something to flag: below goal, exceeds UL, or no UL established. */
+  note?: string;
+}
+
+export interface MicronutrientAnalysisResult {
+  lifeStageGroup: LifeStageGroup;
+  goalPercentDri: number;
+  entries: MicronutrientAnalysisEntry[];
+  allMeetGoal: boolean;
+  anyExceedsUl: boolean;
+}

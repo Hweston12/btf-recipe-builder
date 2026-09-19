@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { evaluateMicronutrientIntake, MICRONUTRIENT_IDS } from "@btf-recipe-builder/calculation";
 import CandidateSummary from "./CandidateSummary";
 import type { CandidateRecipe } from "@/lib/recipeEngine/types";
+
+const aiEstimatedMicronutrients = Object.fromEntries(
+  MICRONUTRIENT_IDS.map((id) => [id, 0])
+) as CandidateRecipe["aiEstimatedMicronutrients"];
 
 function candidate(overrides: Partial<CandidateRecipe> = {}): CandidateRecipe {
   return {
@@ -21,6 +26,14 @@ function candidate(overrides: Partial<CandidateRecipe> = {}): CandidateRecipe {
       fluidMl: 1200,
       densityKcalPerMl: 1.5,
     },
+    aiEstimatedMicronutrients,
+    microNutrientAnalysis: evaluateMicronutrientIntake({
+      estimates: aiEstimatedMicronutrients,
+      ageYears: 30,
+      sexForDri: "female",
+      goalPercentDri: 100,
+      doNotExceedUl: true,
+    }),
     estimateDisclaimer: "Estimated — not a substitute for a verified nutrient analysis.",
     iddsiValidated: false,
     ...overrides,
